@@ -20,7 +20,11 @@ export function extractArticle(html, { url = 'https://corpus.reverie.local/page/
   const dom = new JSDOM(html, { url });
   const doc = dom.window.document;
 
-  const canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href') ?? null;
+  const canonicalLink = doc.querySelector('link[rel="canonical"]')?.getAttribute('href') ?? null;
+  let canonical = null;
+  if (canonicalLink) {
+    try { canonical = new URL(canonicalLink, url).href; } catch { canonical = canonicalLink; }
+  }
   const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ?? null;
 
   // isProbablyReaderable is a UI hint only (length-sensitive); do NOT gate on
