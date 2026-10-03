@@ -3,6 +3,13 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('reverie', {
   libraryList: () => ipcRenderer.invoke('library:list'),
+  libraryView: (opts) => ipcRenderer.invoke('library:view', opts ?? {}),
+  searchQuery: (query, opts) => ipcRenderer.invoke('search:query', { query, ...(opts ?? {}) }),
+  searchRefresh: () => ipcRenderer.invoke('search:refresh'),
+  doctorRun: () => ipcRenderer.invoke('doctor:run'),
+  stateSet: (documentId, patch) => ipcRenderer.invoke('state:set', { documentId, patch }),
+  tagsAdd: (documentId, tag) => ipcRenderer.invoke('tags:add', { documentId, tag }),
+  tagsRemove: (documentId, tag) => ipcRenderer.invoke('tags:remove', { documentId, tag }),
   articleLoad: (documentId) => ipcRenderer.invoke('article:load', documentId),
   articleDelete: (documentId) => ipcRenderer.invoke('article:delete', documentId),
   articleReadState: (documentId, state) => ipcRenderer.invoke('article:read-state', { documentId, state }),

@@ -10,30 +10,45 @@
 <body>
 <header id="topbar">
   <h1 id="brand">Reverie</h1>
+  <input id="search-input" type="text" placeholder="搜索全部资料…（Ctrl+K，支持 tag: is: author: 过滤）" spellcheck="false">
   <span id="queue-hint" title="Capture queue"></span>
   <span class="spacer"></span>
   <button id="btn-reindex" type="button">重建索引</button>
 </header>
 
-<main id="library-view">
-  <ul id="article-list"></ul>
-  <p id="library-empty" hidden>还没有文章。在浏览器里点击 “Save page to Reverie” 保存第一篇。</p>
-</main>
+<div id="layout">
+  <nav id="sidebar">
+    <button data-view="all" class="active" type="button">全部资料 <span class="count" data-count="all">0</span></button>
+    <button data-view="inbox" type="button">Inbox <span class="count" data-count="inbox">0</span></button>
+    <button data-view="unread" type="button">未读 <span class="count" data-count="unread">0</span></button>
+    <button data-view="favorites" type="button">收藏 <span class="count" data-count="favorites">0</span></button>
+    <button data-view="recent" type="button">最近阅读</button>
+    <h3>标签</h3>
+    <div id="tag-facets"></div>
+  </nav>
 
-<article id="reader-view" hidden>
-  <header>
-    <button id="btn-back" type="button">← 返回</button>
-    <button id="btn-annotations" type="button">标注 (<span id="annotation-count">0</span>)</button>
-    <div id="reader-meta"></div>
-  </header>
-  <h1 id="reader-title"></h1>
-  <div id="reader-content"></div>
-</article>
+  <main id="library-view">
+    <ul id="article-list"></ul>
+    <p id="library-empty" hidden></p>
+  </main>
 
-<aside id="annotation-panel" hidden>
-  <h2>标注</h2>
-  <ul id="annotation-list"></ul>
-</aside>
+  <main id="search-results" hidden></main>
+
+  <article id="reader-view" hidden>
+    <header>
+      <button id="btn-back" type="button">← 返回</button>
+      <button id="btn-annotations" type="button">标注 (<span id="annotation-count">0</span>)</button>
+      <div id="reader-meta"></div>
+    </header>
+    <h1 id="reader-title"></h1>
+    <div id="reader-content"></div>
+  </article>
+
+  <aside id="annotation-panel" hidden>
+    <h2>标注</h2>
+    <ul id="annotation-list"></ul>
+  </aside>
+</div>
 
 <div id="selection-popup" hidden>
   <button id="popup-highlight" type="button">高亮</button>

@@ -15,6 +15,9 @@ import { processQueue } from '../src/capture/worker.js';
 import { verifyArticleDir } from '../src/library/persist.js';
 import { createAnnotationService } from '../src/annotation/service.js';
 import { parseMarkdownBlocks } from '../src/reader/markdown-reader.js';
+import { loadUserState, updateUserState, forgetDocument, userStatePath } from '../src/library/user-state.js';
+import { loadSearchIndex, refreshSearchIndex, invalidateSearchIndex, search, queryLibrary, tagFacets, viewCounts } from '../src/search/search-service.js';
+import { runDoctor } from '../src/library/doctor.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const libraryRoot = getLibraryRoot();
@@ -75,6 +78,9 @@ function registerIpc() {
     const { entry, dir, meta, markdown, blocks, canonicalText, service } = await loadArticle(documentId);
     const readState = await loadReadState();
     const { annotations, invalid, duplicates } = await service.listResolved();
+    // Recent view source of truth (M3 §131): persist on open, then refresh the derived index
+    await updateUserState(documentId, { last_opened_at: new Date().toISOString() });
+    await refreshSearchIndex(libraryRoot).catch(() => {});
     if (invalid.length > 0 || duplicates.length > 0) {
       console.error(`[reverie] annotation diagnostics for ${documentId}:`, JSON.stringify({ invalid, duplicates }));
     }
@@ -121,10 +127,61 @@ function registerIpc() {
 
   ipcMain.handle('article:delete', async (_e, documentId) => {
     const result = await deleteArticle(libraryRoot, documentId);
+    await forgetDocument(documentId);
+    invalidateSearchIndex();
     await rebuildIndex(libraryRoot);
+    await refreshSearchIndex(libraryRoot).catch(() => {});
     broadcast('library:changed');
     return result;
   });
+
+  // ---- M3: search & library views ----
+  ipcMain.handle('library:view', async (_e, { view = 'all', query = '', tags = [], sort = 'captured', limit = 200, offset = 0 }) => {
+    const results = await queryLibrary(query, { view, tags, sort, limit, offset, libraryRoot });
+    return { ...results, counts: viewCounts(), tag_facets: tagFacets() };
+  });
+
+  ipcMain.handle('search:query', async (_e, { query, limit = 50, offset = 0 }) => {
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    return search(query, { limit, offset });
+  });
+
+  ipcMain.handle('search:refresh', async () => {
+    invalidateSearchIndex();
+    const { total } = await refreshSearchIndex(libraryRoot);
+    return { total };
+  });
+
+  ipcMain.handle('state:set', async (_e, { documentId, patch }) => {
+    // order matters (M3 §72/73): user-owned file first, then derived index
+    const state = await updateUserState(documentId, patch);
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return state;
+  });
+
+  ipcMain.handle('tags:add', async (_e, { documentId, tag }) => {
+    const { stateOf } = await import('../src/library/user-state.js');
+    const userState = await loadUserState();
+    const current = stateOf(userState, documentId);
+    const state = await updateUserState(documentId, { tags: [...current.tags, tag] });
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return state;
+  });
+
+  ipcMain.handle('tags:remove', async (_e, { documentId, tag }) => {
+    const { stateOf, canonicalTag } = await import('../src/library/user-state.js');
+    const userState = await loadUserState();
+    const current = stateOf(userState, documentId);
+    const key = canonicalTag(tag)?.key;
+    const state = await updateUserState(documentId, { tags: current.tags.filter((t) => t.toLowerCase() !== key) });
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return state;
+  });
+
+  ipcMain.handle('doctor:run', async () => runDoctor(libraryRoot));
 
   ipcMain.handle('article:read-state', async (_e, { documentId, state }) => {
     await setReadState(documentId, state);
@@ -200,7 +257,9 @@ app.whenReady().then(async () => {
   await fsp.mkdir(queueDir, { recursive: true });
   registerIpc();
   createWindow();
-  await runQueueIfIdle(); // process what accumulated while the app was closed (M1 §5.1)
+  await runQueueIfIdle();
+  await loadSearchIndex(libraryRoot).catch(() => {});
+  await refreshSearchIndex(libraryRoot).catch((e) => console.error('[reverie] search refresh:', e.message)); // process what accumulated while the app was closed (M1 §5.1)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
