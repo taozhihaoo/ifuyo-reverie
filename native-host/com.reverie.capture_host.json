@@ -1,0 +1,9 @@
+{
+  "name": "com.reverie.capture_host",
+  "description": "Reverie Capture Host — receives capture requests from the Reverie browser extension",
+  "type": "stdio",
+  "path": "<ABSOLUTE-PATH-TO>\\native-host\\run-host.cmd",
+  "allowed_origins": [
+    "chrome-extension://ngfmioeinapcphpbgboaajachhhdgajg/"
+  ]
+}
