@@ -27,6 +27,7 @@ export async function scanLibrary(libraryRoot) {
     }
     for (const d of dirents) {
       if (!d.isDirectory()) continue;
+      if (d.name.startsWith('.')) continue; // staging (.tmp-*) and hidden dirs are not documents
       if (d.name === 'exports' || DOC_TYPES.has(d.name)) {
         await walk(path.join(dir, d.name));
         continue;
@@ -51,6 +52,12 @@ export async function scanLibrary(libraryRoot) {
           dir: path.relative(libraryRoot, docDir),
           annotation_count: annotations.length,
           created_at: meta.created_at,
+          captured_at: meta.captured_at ?? null,
+          published_at: meta.published_at ?? null,
+          language: meta.language ?? null,
+          original_url: meta.source?.original_url ?? null,
+          canonical_url: meta.source?.canonical_url ?? null,
+          content_hash: meta.source?.content_hash ?? null,
         });
       } catch (err) {
         errors.push({ path: docDir, reason: err.message });
