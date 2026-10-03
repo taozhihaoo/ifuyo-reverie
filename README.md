@@ -23,6 +23,12 @@ M0 不做产品功能，只回答一个问题：
 
 | 文档 | 内容 |
 | --- | --- |
+| [docs/M3-STATUS.md](docs/M3-STATUS.md) | M3 完成报告（搜索与资料库） |
+| [docs/SEARCH.md](docs/SEARCH.md) | 全局搜索：字段/语法/排序/导航 |
+| [docs/LIBRARY.md](docs/LIBRARY.md) | 资料库视图：Inbox/Recent/Favorites/未读/标签 |
+| [docs/USER-STATE.md](docs/USER-STATE.md) | 用户状态：read/favorite/inbox/tags/last_opened |
+| [docs/SEARCH-FORMAT.md](docs/SEARCH-FORMAT.md) | 派生搜索索引格式 |
+| [docs/PERF.md](docs/PERF.md) | 性能基准（真实测量） |
 | [docs/M2-STATUS.md](docs/M2-STATUS.md) | M2 完成报告（Annotation Core） |
 | [docs/ANNOTATIONS.md](docs/ANNOTATIONS.md) | 标注模型、生命周期与 Reader 集成 |
 | [docs/ANNOTATION-FORMAT.md](docs/ANNOTATION-FORMAT.md) | annotations.jsonl 格式规范 |
