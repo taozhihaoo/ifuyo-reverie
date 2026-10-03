@@ -13,7 +13,7 @@
 
 **检查覆盖**：blog、news、documentation、GitHub、forum、newsletter、technical article、long article、image-heavy、table-heavy、code-heavy、malformed HTML、minimal HTML。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED-WITH-RISKS`
 
 ---
 
@@ -25,7 +25,7 @@
 Create → Store Anchor → Close → Reopen → Resolve → Restore；
 文档轻微变化后重定位；无法定位时标记 orphaned 且绝不删除。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED`
 
 ---
 
@@ -37,7 +37,7 @@ Create → Store Anchor → Close → Reopen → Resolve → Restore；
 1. Node + jsdom：epubcfi Range→CFI→Range round-trip。
 2. 浏览器自测页：Open → TOC → Select → Highlight → Store Anchor → Reopen → Restore。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED`
 
 ---
 
@@ -47,7 +47,7 @@ Create → Store Anchor → Close → Reopen → Resolve → Restore；
 
 **验证方式**：Node 侧验证 Open / 页模型 / 文本提取 / 跨页搜索；合成文本 PDF、多栏 PDF、100 页长 PDF、扫描 PDF 四类样本；扫描件记录 `OCR = Not Supported in M0`。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED-WITH-RISKS`
 
 ---
 
@@ -57,7 +57,7 @@ Create → Store Anchor → Close → Reopen → Resolve → Restore；
 
 **验证方式**：最小 MV3 扩展 + Node Native Host；长度前缀 JSON 协议 standalone 自动化测试；注册脚本与文档；真浏览器 E2E 视环境执行或记为 OPEN QUESTION。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED-WITH-RISKS`
 
 ---
 
@@ -67,7 +67,7 @@ Create → Store Anchor → Close → Reopen → Resolve → Restore；
 
 **验证方式**：FORMAT.md v1 + core 实现（meta.json / annotations.jsonl / article.md / source / assets），全部 round-trip 测试 + 损坏行容错测试 + 原子写入测试。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED`
 
 ---
 
@@ -77,7 +77,7 @@ Create → Store Anchor → Close → Reopen → Resolve → Restore；
 
 **验证方式**：M0 不做正式搜索；由 Index Recovery PoC 证明「从文件重建索引数据」可行，结构不阻碍 M3。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED`
 
 ---
 
@@ -87,7 +87,7 @@ Create → Store Anchor → Close → Reopen → Resolve → Restore；
 
 **验证方式**：SECURITY.md 威胁模型 + 自动化测试：HTML sanitize（script/事件/javascript: 剥离）、URL scheme 过滤、ZIP Zip-Slip / 超大条目防护、Native Messaging 消息大小与契约校验。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED`
 
 ---
 
@@ -97,4 +97,4 @@ Create → Store Anchor → Close → Reopen → Resolve → Restore；
 
 **验证方式**：Delete Index → Read Source Files → Rebuild PoC；断言源文件 byte 级未变、重建结果一致。
 
-**状态**：`PENDING`
+**状态**：`VERIFIED`
