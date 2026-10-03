@@ -111,6 +111,11 @@ export function resolveTextAnchor(anchor, text) {
         best = start;
       }
     }
+    // M2 §16: never silently pick "a B" — without agreeing context the match
+    // is ambiguous and must NOT be treated as resolved.
+    if (bestScore <= 0) {
+      return { status: 'ambiguous', reason: 'quote occurs multiple times and no context agrees' };
+    }
     return { status: 'resolved', start: best, end: best + anchor.quote.length, quality: 'exact-quote-disambiguated' };
   }
 
@@ -118,6 +123,9 @@ export function resolveTextAnchor(anchor, text) {
   // (quote has spaces, doc text was squashed) via normalized comparison.
   const collapsed = resolveCollapsed(anchor, text);
   if (collapsed) {
+    if (collapsed.ambiguous) {
+      return { status: 'ambiguous', reason: 'collapsed match occurs multiple times and no context agrees' };
+    }
     return { status: 'resolved', ...collapsed, quality: 'normalized-quote' };
   }
 
@@ -142,6 +150,9 @@ export function resolveTextAnchor(anchor, text) {
           bestScore = score;
           best = hit;
         }
+      }
+      if (bestScore <= 0) {
+        return { status: 'ambiguous', reason: 'flexible match occurs multiple times and no context agrees' };
       }
       return { status: 'resolved', start: best.start, end: best.end, quality: 'flexible-whitespace' };
     }
@@ -170,6 +181,9 @@ function resolveCollapsed(anchor, text) {
       bestScore = score;
       best = nStart;
     }
+  }
+  if (hits.length > 1 && bestScore <= 0) {
+    return { ambiguous: true };
   }
   return { start: doc.map[best], end: doc.map[best + quote.normalized.length] };
 }
