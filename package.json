@@ -16,7 +16,9 @@
     "fixtures:pdf": "node spikes/pdf/make-fixtures.mjs",
     "fixtures:epub": "node spikes/epub/make-fixtures.mjs",
     "spike:pdf:render": "node spikes/pdf/render-node.mjs",
-    "app": "electron ."
+    "app": "electron .",
+    "doctor": "node scripts/doctor.mjs",
+    "bench:m3": "node spikes/bench-m3.mjs"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
