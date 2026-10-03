@@ -1,0 +1,29 @@
+{
+  "name": "ifuyo-reverie",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ifuyo Reverie — Windows-first, local-first, file-native personal reading archive. M0: foundation & risk spikes.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "spike:extraction": "node spikes/extraction/run.mjs",
+    "spike:pdf": "node spikes/pdf/run.mjs",
+    "spike:epub:node": "node spikes/epub/run-node.mjs",
+    "spike:recovery": "node spikes/recovery/run.mjs",
+    "fixtures:pdf": "node spikes/pdf/make-fixtures.mjs",
+    "fixtures:epub": "node spikes/epub/make-fixtures.mjs"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "dompurify": "^3.4.16",
+    "foliate-js": "^1.0.1",
+    "jsdom": "^30.1.1",
+    "pdfjs-dist": "^6.4.299"
+  },
+  "devDependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}
