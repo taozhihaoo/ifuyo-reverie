@@ -15,7 +15,8 @@
     "spike:recovery": "node spikes/recovery/run.mjs",
     "fixtures:pdf": "node spikes/pdf/make-fixtures.mjs",
     "fixtures:epub": "node spikes/epub/make-fixtures.mjs",
-    "spike:pdf:render": "node spikes/pdf/render-node.mjs"
+    "spike:pdf:render": "node spikes/pdf/render-node.mjs",
+    "app": "electron ."
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
@@ -26,6 +27,8 @@
   },
   "devDependencies": {
     "@napi-rs/canvas": "^1.0.10",
+    "electron": "^44.5.1",
     "pdf-lib": "^1.17.1"
-  }
+  },
+  "main": "app/main.js"
 }

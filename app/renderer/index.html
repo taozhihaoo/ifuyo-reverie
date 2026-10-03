@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src file: data:; style-src 'self'; script-src 'self'; connect-src 'none'">
+<title>Reverie</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="topbar">
+  <h1 id="brand">Reverie</h1>
+  <span id="queue-hint" title="Capture queue"></span>
+  <span class="spacer"></span>
+  <button id="btn-reindex" type="button">重建索引</button>
+</header>
+
+<main id="library-view">
+  <ul id="article-list"></ul>
+  <p id="library-empty" hidden>还没有文章。在浏览器里点击 “Save page to Reverie” 保存第一篇。</p>
+</main>
+
+<article id="reader-view" hidden>
+  <header>
+    <button id="btn-back" type="button">← 返回</button>
+    <div id="reader-meta"></div>
+  </header>
+  <h1 id="reader-title"></h1>
+  <div id="reader-content"></div>
+</article>
+
+<script src="app.js"></script>
+</body>
+</html>

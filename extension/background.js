@@ -1,7 +1,8 @@
 /**
- * Reverie Capture Spike — MV3 service worker.
- * Sends a CaptureRequest (protocol v1) to the Reverie Capture Host via
- * Native Messaging, then shows the verdict as a badge.
+ * Reverie Capture — MV3 service worker (M1 protocol v1).
+ * Sends a CaptureRequest to the Reverie Capture Host via Native Messaging;
+ * the Host only enqueues (fast), so the badge means "queued", and the final
+ * result is visible inside the Reverie app.
  */
 const HOST_NAME = 'com.reverie.capture_host';
 
@@ -15,25 +16,33 @@ function urlOrigin(url) {
 }
 
 async function captureTab(tab) {
+  if (!tab?.url || !/^https?:/i.test(tab.url)) {
+    await chrome.action.setBadgeText({ text: 'ERR' });
+    await chrome.action.setTitle({ title: 'Reverie: only http(s) pages can be saved' });
+    setTimeout(() => chrome.action.setBadgeText({ text: '' }), 4000);
+    return;
+  }
   const request = {
     protocol_version: 1,
     request_id: crypto.randomUUID(),
-    url: tab.url ?? '',
+    url: tab.url,
     title: (tab.title ?? '').slice(0, 512),
+    source: 'browser',
+    capture_mode: 'article',
     selected_text: '',
-    timestamp: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   };
   try {
     const response = await chrome.runtime.sendNativeMessage(HOST_NAME, request);
-    if (response?.accepted) {
-      await chrome.action.setBadgeText({ text: 'OK' });
+    if (response?.status === 'accepted') {
+      await chrome.action.setBadgeText({ text: 'SAVED' });
       console.info(`queued ${request.request_id} from ${urlOrigin(request.url)}`);
     } else {
-      await chrome.action.setBadgeText({ text: 'ERR' });
+      await chrome.action.setBadgeText({ text: 'FAILED' });
       console.warn(`rejected: ${response?.error_code} ${response?.message}`);
     }
   } catch (err) {
-    await chrome.action.setBadgeText({ text: 'ERR' });
+    await chrome.action.setBadgeText({ text: 'FAILED' });
     console.error('native messaging failed:', err?.message ?? err);
   }
   setTimeout(() => chrome.action.setBadgeText({ text: '' }), 4000);
