@@ -5,7 +5,8 @@ import { promises as fsp } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createCaptureRequest, frameMessage, LIMITS, PROTOCOL_VERSION } from '../../src/capture/protocol.js';
+import { createCaptureRequest, frameMessage, LIMITS, PROTOCOL_VERSION, ERROR_CODES, RESPONSE_STATUSES } from '../../src/capture/protocol.js';
+import { listJobs, JOB_STATUSES } from '../../src/capture/queue.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const HOST = path.join(here, '..', '..', 'src', 'capture', 'native-host.js');
@@ -14,8 +15,8 @@ const EXT_ORIGIN = 'chrome-extension://ngfmioeinapcphpbgboaajachhhdgajg/';
 const tmpdir = () => fsp.mkdtemp(path.join(os.tmpdir(), 'reverie-host-'));
 
 /** Spawn the host and return a client that frames messages and reads replies. */
-function startHost({ queue, origin = EXT_ORIGIN }) {
-  const child = spawn(process.execPath, [HOST, origin, '--parent-window=0', '--queue', queue], {
+function startHost({ queueDir, origin = EXT_ORIGIN }) {
+  const child = spawn(process.execPath, [HOST, origin, '--parent-window=0', '--queue-dir', queueDir], {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   const stderr = [];
@@ -52,69 +53,69 @@ function startHost({ queue, origin = EXT_ORIGIN }) {
   };
 }
 
-test('host accepts a valid CaptureRequest, queues it, and replies accepted', async () => {
+test('host validates v1 request, enqueues, replies accepted', async () => {
   const dir = await tmpdir();
-  const queue = path.join(dir, 'queue.jsonl');
-  const host = startHost({ queue });
-  const req = createCaptureRequest({ url: 'https://example.com/article?utm=x', title: '示例文章', selected_text: '' });
+  const queueDir = path.join(dir, 'queue');
+  const host = startHost({ queueDir });
+  const req = createCaptureRequest({ url: 'https://example.com/article?utm=x', title: '示例文章' });
+  assert.equal(req.source, 'browser');
+  assert.equal(req.capture_mode, 'article');
+  assert.ok(req.created_at);
   host.send(req);
   const reply = await host.nextResponse();
-  assert.equal(reply.accepted, true, JSON.stringify(reply));
+  assert.equal(reply.status, RESPONSE_STATUSES.ACCEPTED, JSON.stringify(reply));
   assert.equal(reply.protocol_version, PROTOCOL_VERSION);
   assert.equal(reply.request_id, req.request_id);
 
-  const line = (await fsp.readFile(queue, 'utf8')).trim();
-  const job = JSON.parse(line);
-  assert.equal(job.request_id, req.request_id);
-  assert.equal(job.url, req.url);
+  const jobs = await listJobs(queueDir);
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].request_id, req.request_id);
+  assert.equal(jobs[0].status, JOB_STATUSES.QUEUED);
   await host.close();
 });
 
-test('host rejects non-http(s) URL scheme (bad_url)', async () => {
+test('host rejects non-http(s) URL scheme (INVALID_URL)', async () => {
   const dir = await tmpdir();
-  const host = startHost({ queue: path.join(dir, 'queue.jsonl') });
-  const req = createCaptureRequest({ url: 'javascript:alert(1)' });
-  host.send(req);
+  const host = startHost({ queueDir: path.join(dir, 'queue') });
+  host.send(createCaptureRequest({ url: 'javascript:alert(1)' }));
   const reply = await host.nextResponse();
-  assert.equal(reply.accepted, false);
-  assert.equal(reply.error_code, 'bad_url');
-  await assert.rejects(() => fsp.access(path.join(dir, 'queue.jsonl'))); // nothing queued
+  assert.equal(reply.status, RESPONSE_STATUSES.FAILED);
+  assert.equal(reply.error_code, ERROR_CODES.INVALID_URL);
   await host.close();
 });
 
-test('host rejects wrong protocol_version', async () => {
+test('host rejects wrong protocol_version (UNSUPPORTED_PROTOCOL)', async () => {
   const dir = await tmpdir();
-  const host = startHost({ queue: path.join(dir, 'queue.jsonl') });
+  const host = startHost({ queueDir: path.join(dir, 'queue') });
   const req = createCaptureRequest({ url: 'https://example.com/' });
   req.protocol_version = 999;
   host.send(req);
   const reply = await host.nextResponse();
-  assert.equal(reply.accepted, false);
-  assert.equal(reply.error_code, 'version_mismatch');
+  assert.equal(reply.status, RESPONSE_STATUSES.FAILED);
+  assert.equal(reply.error_code, ERROR_CODES.UNSUPPORTED_PROTOCOL);
   await host.close();
 });
 
 test('host survives malformed JSON payloads', async () => {
   const dir = await tmpdir();
-  const host = startHost({ queue: path.join(dir, 'queue.jsonl') });
+  const host = startHost({ queueDir: path.join(dir, 'queue') });
   const garbage = Buffer.from('{ this is not json');
   const head = Buffer.alloc(4);
   head.writeUInt32LE(garbage.length, 0);
   host.sendRaw(Buffer.concat([head, garbage]));
   const reply = await host.nextResponse();
-  assert.equal(reply.accepted, false);
-  assert.equal(reply.error_code, 'malformed_json');
+  assert.equal(reply.status, RESPONSE_STATUSES.FAILED);
+  assert.equal(reply.error_code, ERROR_CODES.INVALID_REQUEST);
   // and the host is still alive for a valid message afterwards
-  const req = createCaptureRequest({ url: 'https://example.com/after' });
-  host.send(req);
+  host.send(createCaptureRequest({ url: 'https://example.com/after' }));
   const reply2 = await host.nextResponse();
-  assert.equal(reply2.accepted, true);
+  assert.equal(reply2.status, RESPONSE_STATUSES.ACCEPTED);
   await host.close();
 });
 
 test('host enforces the 1 MB message cap', async () => {
   const dir = await tmpdir();
-  const host = startHost({ queue: path.join(dir, 'queue.jsonl') });
+  const host = startHost({ queueDir: path.join(dir, 'queue') });
   // The host reads the frame header and exits before draining the payload,
   // so we only send the 4-byte length header.
   const head = Buffer.alloc(4);
@@ -129,14 +130,14 @@ test('host enforces the 1 MB message cap', async () => {
 
 test('host refuses to run without a browser origin', async () => {
   const dir = await tmpdir();
-  const child = spawn(process.execPath, [HOST, '--queue', path.join(dir, 'q.jsonl')], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [HOST, '--queue-dir', path.join(dir, 'q')], { stdio: ['pipe', 'pipe', 'pipe'] });
   const code = await new Promise((resolve) => child.on('exit', resolve));
   assert.equal(code, 2);
 });
 
 test('host refuses untrusted origins', async () => {
   const dir = await tmpdir();
-  const child = spawn(process.execPath, [HOST, 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/', '--queue', path.join(dir, 'q.jsonl')], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [HOST, 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/', '--queue-dir', path.join(dir, 'q')], { stdio: ['pipe', 'pipe', 'pipe'] });
   const code = await new Promise((resolve) => child.on('exit', resolve));
   assert.equal(code, 2);
 });
