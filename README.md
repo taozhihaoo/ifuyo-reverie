@@ -23,8 +23,12 @@ M0 不做产品功能，只回答一个问题：
 
 | 文档 | 内容 |
 | --- | --- |
-| [docs/M0-STATUS.md](docs/M0-STATUS.md) | 仓库现状、架构边界、Spike 结论、M0 最终报告 |
-| [docs/M0-RISKS.md](docs/M0-RISKS.md) | 风险清单（R1–R8）与验证状态 |
+| [docs/M1-STATUS.md](docs/M1-STATUS.md) | M1 完成报告（Web Capture：已实现/已验证/限制/风险/推迟） |
+| [docs/CAPTURE.md](docs/CAPTURE.md) | 采集子系统手册：协议、队列、管线、重复判定、验收清单 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块边界与依赖方向 |
+| [docs/TESTING.md](docs/TESTING.md) | 测试地图与基建模式 |
+| [docs/M0-STATUS.md](docs/M0-STATUS.md) | M0 报告（现状、架构边界、Spike 结论） |
+| [docs/M0-RISKS.md](docs/M0-RISKS.md) | 风险清单（R1–R9）与验证状态 |
 | [docs/FORMAT.md](docs/FORMAT.md) | Library 文件格式规范（Source of Truth） |
 | [docs/SECURITY.md](docs/SECURITY.md) | 安全基线与威胁模型 |
 | [THIRD_PARTY.md](THIRD_PARTY.md) | 第三方依赖与许可证审计 |
