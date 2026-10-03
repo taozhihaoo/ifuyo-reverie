@@ -77,6 +77,7 @@ Reverie Library/
 | 编码 | 全部 UTF-8（无 BOM），JSONL 换行 `\n` |
 | 版本字段 | `format_version`（整数，当前 `1`），出现在 `meta.json` 与每条 annotation 中 |
 | 未知字段 | 读取时**必须保留并容忍**未知字段；写入时原样保留（forward compatible） |
+| 可选字段 | 缺失即**省略字段**——禁止写 `null` / 空串（校验器会拒绝，M1 起强制） |
 | 校验 | `content_hash` = `sha256-<hex>`，对正文文件字节计算 |
 
 ---
@@ -117,6 +118,11 @@ Reverie Library/
 | `type` | ✅ | `article` \| `book` \| `pdf` \| `markdown` \| `text`（M4 起增 `feed` 相关元数据，不改本表已有语义） |
 | `title` | ✅ | 字符串 |
 | `author` | ❌ | 字符串；缺失/未知 → 省略字段，不写空串 |
+| `published_at` | ❌ | 文章发布时间（ISO 8601；来源页面声明） |
+| `language` | ❌ | BCP-47 语言标签（如 `zh-CN`） |
+| `description` | ❌ | 摘要（提取器提供时） |
+| `site_name` | ❌ | 站点名（提取器提供时） |
+| `capture_warnings` | ❌ | 采集降级警告数组，如 `[{code:"asset_download_failed", url, error_code}]`；文章本身有效 |
 | `created_at` | ✅ | 目录创建时间 |
 | `captured_at` | ❌ | 网页捕获时间（web 来源） |
 | `updated_at` | ✅ | 元数据最后一次修改时间 |

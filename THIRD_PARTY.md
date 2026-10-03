@@ -19,6 +19,8 @@
 | --- | --- | --- | --- | --- |
 | jsdom | 30.1.1 | MIT | npm | Node 侧 DOM（提取/EPUB CFI/消毒测试） |
 | pdf-lib | 1.17.1 | MIT | npm | 生成合成 PDF fixtures（dev-only） |
+| electron | 44.5.1 | MIT | npm | 桌面壳（M1 起；随应用分发，保留版权声明） |
+| @napi-rs/canvas | 1.0.10 | MIT | npm | Node 侧 PDF 渲染验证（dev-only，含平台二进制） |
 
 ## 传递依赖（直接影响分发物）
 
