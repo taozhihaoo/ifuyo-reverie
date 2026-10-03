@@ -1,18 +1,20 @@
 /**
- * Reverie App — Electron main process (M1 §18).
+ * Reverie App — Electron main process (M1 §18 + M2 annotation integration).
  * Thin shell: window + IPC. All real logic lives in src/ (Library, Queue,
- * Pipeline) so the architecture boundary App -> Core stays honest.
+ * Pipeline, Annotation Core) so the architecture boundary App -> Core stays
+ * honest and testable without Electron.
  */
 import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { fileURLToPath } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { promises as fsp } from 'node:fs';
 import { getLibraryRoot, getQueueDir } from '../src/core/paths.js';
 import { loadIndex, rebuildIndex, loadReadState, setReadState, deleteArticle } from '../src/library/index.js';
 import { listJobs, recoverOnStartup, JOB_STATUSES } from '../src/capture/queue.js';
 import { processQueue } from '../src/capture/worker.js';
 import { verifyArticleDir } from '../src/library/persist.js';
-import { promises as fsp } from 'node:fs';
+import { createAnnotationService } from '../src/annotation/service.js';
+import { parseMarkdownBlocks } from '../src/reader/markdown-reader.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const libraryRoot = getLibraryRoot();
@@ -39,6 +41,23 @@ function broadcast(channel) {
   }
 }
 
+/** Load an article directory + its annotation service (single lookup). */
+async function loadArticle(documentId) {
+  const index = await loadIndex(libraryRoot);
+  const entry = index.entries.find((e) => e.document_id === documentId);
+  if (!entry) throw new Error(`unknown document: ${documentId}`);
+  const dir = path.join(libraryRoot, entry.path);
+  const meta = await verifyArticleDir(dir); // integrity check on every open
+  const markdown = await fsp.readFile(path.join(dir, 'article.md'), 'utf8');
+  const { blocks, canonicalText } = parseMarkdownBlocks(markdown);
+  const service = createAnnotationService({
+    articleDir: dir,
+    documentId,
+    getReaderContext: async () => ({ canonicalText }),
+  });
+  return { entry, dir, meta, markdown, blocks, canonicalText, service };
+}
+
 function registerIpc() {
   ipcMain.handle('library:list', async () => {
     const index = await loadIndex(libraryRoot);
@@ -53,19 +72,51 @@ function registerIpc() {
   });
 
   ipcMain.handle('article:load', async (_e, documentId) => {
-    const index = await loadIndex(libraryRoot);
-    const entry = index.entries.find((e) => e.document_id === documentId);
-    if (!entry) throw new Error(`unknown document: ${documentId}`);
-    const dir = path.join(libraryRoot, entry.path);
-    const meta = await verifyArticleDir(dir); // integrity check on every open
-    const markdown = await fsp.readFile(path.join(dir, 'article.md'), 'utf8');
+    const { entry, dir, meta, markdown, blocks, canonicalText, service } = await loadArticle(documentId);
     const readState = await loadReadState();
+    const { annotations, invalid, duplicates } = await service.listResolved();
+    if (invalid.length > 0 || duplicates.length > 0) {
+      console.error(`[reverie] annotation diagnostics for ${documentId}:`, JSON.stringify({ invalid, duplicates }));
+    }
     return {
       meta,
       markdown,
+      blocks,
+      canonicalText,
       dir,
+      annotations,
+      diagnostics: { invalid, duplicates },
       read_state: readState.states[documentId]?.state ?? 'unread',
+      path: entry.path,
     };
+  });
+
+  ipcMain.handle('annotation:create', async (_e, { documentId, anchor, note }) => {
+    const { service } = await loadArticle(documentId);
+    const { annotation } = await service.createHighlight({ anchor, note });
+    const { annotations } = await service.listResolved();
+    return { annotation, annotations };
+  });
+
+  ipcMain.handle('annotation:update-note', async (_e, { documentId, annotationId, note }) => {
+    const { service } = await loadArticle(documentId);
+    await service.updateNote(annotationId, note);
+    const { annotations } = await service.listResolved();
+    return { annotations };
+  });
+
+  ipcMain.handle('annotation:delete', async (_e, { documentId, annotationId }) => {
+    const { service } = await loadArticle(documentId);
+    await service.delete(annotationId);
+    const { annotations } = await service.listResolved();
+    return { annotations };
+  });
+
+  ipcMain.handle('annotation:repair', async (_e, { documentId, annotationId, anchor }) => {
+    const { service } = await loadArticle(documentId);
+    const { annotation } = await service.repair(annotationId, { anchor });
+    const { annotations } = await service.listResolved();
+    return { annotation, annotations };
   });
 
   ipcMain.handle('article:delete', async (_e, documentId) => {
@@ -122,8 +173,8 @@ function registerIpc() {
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1080,
-    height: 760,
+    width: 1180,
+    height: 800,
     title: 'Reverie',
     backgroundColor: '#faf9f7',
     webPreferences: {

@@ -12,6 +12,10 @@ contextBridge.exposeInMainWorld('reverie', {
   queueList: () => ipcRenderer.invoke('queue:list'),
   queueProcess: () => ipcRenderer.invoke('queue:process'),
   openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
+  annotationCreate: (documentId, anchor, note) => ipcRenderer.invoke('annotation:create', { documentId, anchor, note }),
+  annotationUpdateNote: (documentId, annotationId, note) => ipcRenderer.invoke('annotation:update-note', { documentId, annotationId, note }),
+  annotationDelete: (documentId, annotationId) => ipcRenderer.invoke('annotation:delete', { documentId, annotationId }),
+  annotationRepair: (documentId, annotationId, anchor) => ipcRenderer.invoke('annotation:repair', { documentId, annotationId, anchor }),
   onLibraryChanged: (cb) => {
     const h = () => cb();
     ipcRenderer.on('library:changed', h);

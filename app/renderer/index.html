@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'none'; img-src file: data:; style-src 'self'; script-src 'self'; connect-src 'none'">
+      content="default-src 'none'; img-src file: data: https: http:; style-src 'self'; script-src 'self'; connect-src 'none'">
 <title>Reverie</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -23,12 +23,24 @@
 <article id="reader-view" hidden>
   <header>
     <button id="btn-back" type="button">← 返回</button>
+    <button id="btn-annotations" type="button">标注 (<span id="annotation-count">0</span>)</button>
     <div id="reader-meta"></div>
   </header>
   <h1 id="reader-title"></h1>
   <div id="reader-content"></div>
 </article>
 
+<aside id="annotation-panel" hidden>
+  <h2>标注</h2>
+  <ul id="annotation-list"></ul>
+</aside>
+
+<div id="selection-popup" hidden>
+  <button id="popup-highlight" type="button">高亮</button>
+  <button id="popup-repair" type="button">修复此标注</button>
+</div>
+
+<script src="reader-anchor.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
