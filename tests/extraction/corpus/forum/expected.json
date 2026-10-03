@@ -1,0 +1,6 @@
+{
+  "title_contains": "墨水屏设备",
+  "body_contains": ["主要看 PDF 和 EPUB", "翻页速度"],
+  "body_not_contains": ["登录"],
+  "min_paragraphs": 3
+}

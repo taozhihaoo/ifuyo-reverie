@@ -1,0 +1,11 @@
+{
+  "title": "我的周末修车记 | 山间小站",
+  "title_contains": "周末修车记",
+  "byline_contains": "老周",
+  "canonical": "https://blog.hillstation.example/posts/weekend-repair",
+  "body_contains": ["后刹车完全失灵", "内六角工具", "四十分钟在找那颗滚到床底下的垫片"],
+  "body_not_contains": ["首页", "归档", "© 2026"],
+  "min_paragraphs": 4,
+  "min_images": 1,
+  "min_blockquotes": 1
+}

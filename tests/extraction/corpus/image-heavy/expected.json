@@ -1,0 +1,7 @@
+{
+  "title_contains": "十个天台",
+  "body_contains": ["水塔与鸽子", "日落只持续了六分钟"],
+  "body_not_contains": ["首页"],
+  "min_images": 8,
+  "min_paragraphs": 5
+}

@@ -1,0 +1,8 @@
+{
+  "title": "Configuration Reference — WidgetKit Docs",
+  "body_contains": ["widget.config.json", "debounces writes by 120"],
+  "body_not_contains": ["Home", "License"],
+  "min_paragraphs": 2,
+  "min_lists": 1,
+  "min_code_blocks": 1
+}

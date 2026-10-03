@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Configuration Reference — WidgetKit Docs</title></head>
+<body>
+<nav class="sidebar">
+<a href="/">Home</a><a href="/install">Install</a><a href="/config">Configuration</a><a href="/api">API</a>
+</nav>
+<main>
+<h1>Configuration Reference</h1>
+<p>WidgetKit reads configuration from <code>widget.config.json</code> at project root. Unknown keys are ignored; missing keys fall back to defaults.</p>
+<h2>Core options</h2>
+<ul>
+<li><code>port</code> — TCP port for the dev server (default 4173)</li>
+<li><code>watch</code> — enable file watching (default true)</li>
+<li><code>logLevel</code> — one of debug, info, warn, error</li>
+</ul>
+<h2>Example</h2>
+<pre><code>{
+  "port": 8080,
+  "watch": false,
+  "logLevel": "warn"
+}</code></pre>
+<p>Changes take effect after restart. The watcher debounces writes by 120 ms.</p>
+</main>
+<footer><a href="/license">License</a> · <a href="/contact">Contact</a></footer>
+</body>
+</html>

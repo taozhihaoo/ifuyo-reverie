@@ -1,0 +1,7 @@
+{
+  "title": "The Long Walk: Notes From Sixty Rest Stops",
+  "byline": "M. Alvarez",
+  "body_contains": ["distances lie", "eleven so far", "without announcing anything", "only one is forgiven"],
+  "body_not_contains": ["Home", "RSS"],
+  "min_paragraphs": 20
+}

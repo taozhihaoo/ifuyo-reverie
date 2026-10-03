@@ -1,0 +1,10 @@
+{
+  "title_contains": "标签没关好",
+  "body_contains": [
+    "2008 年的 CMS",
+    "解析器把它修好了"
+  ],
+  "min_paragraphs": 2,
+  "xfail": true,
+  "xfail_reason": "root-caused: unclosed <h1> swallows all following paragraphs per HTML5 parsing, Readability scoring finds no candidate (M0 finding, revisit with preprocessing)"
+}

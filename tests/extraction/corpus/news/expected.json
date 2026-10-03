@@ -1,0 +1,8 @@
+{
+  "title_contains": "地铁十号线全线贯通",
+  "byline_contains": "林晓",
+  "published_time_contains": "2026-09-28",
+  "body_contains": ["日均客流约二十二万人次", "从城东到城西的通勤时间", "多睡二十分钟"],
+  "body_not_contains": ["热门推荐", "退休教师捐出毕生积蓄"],
+  "min_paragraphs": 3
+}

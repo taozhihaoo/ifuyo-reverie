@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>文本标注系统的定位策略：从 offset 到 quote + context</title>
+<meta name="author" content="陈默"></head>
+<body>
+<nav><a href="/blog">博客</a><a href="/tags">标签</a></nav>
+<article>
+<h1>文本标注系统的定位策略：从 offset 到 quote + context</h1>
+<p>划线标注最难的不是存储，而是重定位。用户半年后重新打开文章，原始字符 offset 往往已经失效。</p>
+<h2>为什么单一 offset 不够</h2>
+<p>正文会被重新提取，段落会被增删，甚至整个 DOM 结构都会变化。任何只记录 offset 的方案，在第一次内容更新后都会失败。</p>
+<h2>quote + prefix + suffix</h2>
+<p>更稳的方案是记录被选中的文本本身，加上前后各三十二个字符作为上下文。定位时先尝试 offset，失败后按 quote 全文搜索，再用上下文消歧。</p>
+<pre><code>anchor = {
+  quote:   "被选中的原文",
+  prefix:  "引文前文…",
+  suffix:  "引文后文…",
+  position: { start: 1207, end: 1221 }
+}</code></pre>
+<h2>失败是一种状态，不是异常</h2>
+<p>当 quote 在文档中彻底消失时，正确的做法是把标注标记为 orphaned 并保留展示，而不是删除。定位失败是数据的一种正常状态。</p>
+<table>
+<tr><th>策略</th><th>抗变化能力</th><th>成本</th></tr>
+<tr><td>纯 offset</td><td>无</td><td>最低</td></tr>
+<tr><td>quote + context</td><td>高</td><td>中等</td></tr>
+<tr><td>完整 diff 对齐</td><td>最高</td><td>高</td></tr>
+</table>
+<p>结论：存储便宜，重定位才是标注系统的核心。为最坏情况设计，为常见情况优化。</p>
+</article>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "title": "Why I Keep a Reading Archive",
+  "byline": "Jane Doe",
+  "canonical": "https://janedoe.example/reading-archive/",
+  "body_contains": ["three hundred saved articles", "index is disposable"],
+  "body_not_contains": ["RSS"],
+  "min_paragraphs": 3,
+  "min_blockquotes": 1
+}

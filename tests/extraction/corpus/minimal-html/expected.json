@@ -1,0 +1,5 @@
+{
+  "title_contains": "Almost Nothing",
+  "body_contains": ["one short paragraph"],
+  "min_paragraphs": 1
+}

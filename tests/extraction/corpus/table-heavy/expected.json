@@ -1,0 +1,7 @@
+{
+  "title_contains": "四款后驮包对比",
+  "body_contains": ["没有完美", "自配防水袋"],
+  "body_not_contains": ["测评站"],
+  "min_tables": 2,
+  "min_paragraphs": 2
+}

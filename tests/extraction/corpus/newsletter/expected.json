@@ -1,0 +1,13 @@
+{
+  "title_contains": "Weekly Bytes #42",
+  "body_contains": [
+    "fastest cache is the one you can rebuild"
+  ],
+  "body_not_contains": [
+    "Unsubscribe"
+  ],
+  "min_paragraphs": 2,
+  "known_loss_contains": [
+    "hdrhistogram-cli"
+  ]
+}

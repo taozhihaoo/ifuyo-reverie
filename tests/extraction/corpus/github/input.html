@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>tinylog/README at main · octo-lab/tinylog</title></head>
+<body>
+<div id="repository-container-header"><h1>tinylog</h1><p>A 200-line structured logger for Node.js</p></div>
+<article id="readme">
+<h1>tinylog</h1>
+<p>A 200-line structured logger for Node.js. No dependencies, no configuration, JSON lines out of the box.</p>
+<h2>Install</h2>
+<pre lang="bash"><code>npm install tinylog</code></pre>
+<h2>Usage</h2>
+<pre lang="javascript"><code>import { log } from 'tinylog'
+log.info('server started', { port: 3000 })
+log.error('db unreachable', { host })</code></pre>
+<h2>Features</h2>
+<ul>
+<li>JSON lines to stdout</li>
+<li>child loggers with bound fields</li>
+<li>level filtering via LOG_LEVEL</li>
+</ul>
+<h2>License</h2>
+<p>MIT</p>
+</article>
+</body>
+</html>

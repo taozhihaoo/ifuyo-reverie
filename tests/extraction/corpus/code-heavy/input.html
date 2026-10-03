@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Async Patterns I Actually Use</title></head>
+<body>
+<div class="nav"><a href="/blog">Blog</a><a href="/archive">Archive</a></div>
+<article>
+<h1>Async Patterns I Actually Use</h1>
+<p>After ten years of JavaScript, these are the four async patterns that survived every framework change.</p>
+<h2>1. Promise gate</h2>
+<pre><code>let gate
+function once(fn) {
+  gate = fn().catch(e =&gt; { gate = null; throw e })
+  return gate
+}</code></pre>
+<p>The gate reopens on failure, which is the whole trick.</p>
+<h2>2. Bounded pool</h2>
+<pre><code>async function pool(items, worker, size = 4) {
+  const queue = [...items]
+  const runners = Array.from({ length: size }, async () =&gt; {
+    while (queue.length) await worker(queue.shift())
+  })
+  await Promise.all(runners)
+}</code></pre>
+<h2>3. Deadline race</h2>
+<pre><code>const result = await Promise.race([
+  fetchJson(url),
+  sleep(3000).then(() =&gt; { throw new Error('timeout') })
+])</code></pre>
+<p>Deadlines belong to the caller, not the transport.</p>
+<h2>4. Cancel-safe loop</h2>
+<pre><code>for await (const evt of events()) {
+  if (cancelled) break
+  handle(evt)
+}</code></pre>
+<p>Everything else was fashion. These four were architecture.</p>
+</article>
+</body>
+</html>

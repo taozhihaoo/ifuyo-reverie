@@ -1,0 +1,15 @@
+{
+  "title_contains": "定位策略",
+  "byline_contains": "陈默",
+  "body_contains": [
+    "重定位",
+    "orphaned",
+    "为最坏情况设计"
+  ],
+  "body_not_contains": [
+    "标签"
+  ],
+  "min_paragraphs": 4,
+  "min_code_blocks": 1,
+  "min_tables": 1
+}

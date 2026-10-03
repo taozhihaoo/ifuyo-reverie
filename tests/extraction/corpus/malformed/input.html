@@ -1,0 +1,12 @@
+<HTML>
+<HEAD><TITLE>一篇标签没关好的 HTML</TITLE><meta charset=utf-8></HEAD>
+<BODY>
+<DIV class=wrap>
+<H1>一篇标签没关好的 HTML
+<P>这段 HTML 来自某个 2008 年的 CMS：标签不闭合、属性不加引号、大小写混杂。<BR>
+<P>第二段开始之前，上一段的 P 标签根本没有闭合。浏览器会帮它修复，Readability 依赖的 DOM 解析器也一样。
+<div><p>嵌套结构也乱了<div>这里是错误嵌套的内容，里面还有一句<b>加粗的話</i>用错了闭合标签。</div>
+<P>尽管如此，正文的内容仍然是可识别的：解析器把它修好了，提取器拿到了段落。
+<IMG src=pics/photo.jpg alt=broken>
+</BODY>
+</HTML>

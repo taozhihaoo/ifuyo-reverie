@@ -1,0 +1,7 @@
+{
+  "title_contains": "tinylog",
+  "body_contains": ["structured logger", "npm install tinylog", "child loggers with bound fields"],
+  "min_paragraphs": 2,
+  "min_code_blocks": 2,
+  "min_lists": 1
+}
