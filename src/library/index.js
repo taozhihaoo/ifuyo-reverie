@@ -33,6 +33,7 @@ export async function rebuildIndex(libraryRoot, indexPath = getIndexPath(), { no
       content_hash: e.content_hash,
       path: e.dir,
       annotation_count: e.annotation_count,
+      annotations: e.annotations ?? [],
     })),
   };
   await writeFileAtomic(indexPath, JSON.stringify(index, null, 2));

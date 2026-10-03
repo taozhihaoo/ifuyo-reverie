@@ -51,6 +51,17 @@ export async function scanLibrary(libraryRoot) {
           author: meta.author ?? null,
           dir: path.relative(libraryRoot, docDir),
           annotation_count: annotations.length,
+          // annotation projection (M2 §42): derived from annotations.jsonl,
+          // rebuilt with the index — never the source of truth
+          annotations: annotations.slice(0, 500).map((a) => ({
+            annotation_id: a.annotation_id,
+            document_id: a.document_id,
+            type: a.type,
+            status: a.status,
+            created_at: a.created_at,
+            updated_at: a.updated_at,
+            selected_text: a.quoted_text ?? null,
+          })),
           created_at: meta.created_at,
           captured_at: meta.captured_at ?? null,
           published_at: meta.published_at ?? null,
