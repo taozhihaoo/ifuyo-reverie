@@ -1,0 +1,13 @@
+[
+  { "query": "本地优先软件的设计原则", "expect_doc_n": [1], "expect_match_types": ["title"] },
+  { "query": "Jane Doe", "expect_doc_n": [2, 4], "expect_match_types": ["author"] },
+  { "query": "派生索引", "expect_doc_n": [1], "expect_match_types": ["body"] },
+  { "query": "文件是唯一的真相", "expect_doc_n": [1], "expect_match_types": ["body", "highlight"] },
+  { "query": "核心原则，写进产品纲领", "expect_doc_n": [1], "expect_match_types": ["note"] },
+  { "query": "tag:rust", "expect_doc_n": [3], "expect_match_types": [] },
+  { "query": "example.com/post/2", "expect_doc_n": [2], "expect_match_types": ["url"] },
+  { "query": "tag:本地优先 is:read", "expect_doc_n": [1], "expect_match_types": [] },
+  { "query": "is:unread in:inbox", "expect_doc_n": [2, 3, 4, 5], "expect_match_types": [] },
+  { "query": "The folder is the library", "expect_doc_n": [4], "expect_match_types": ["body", "highlight"] },
+  { "query": "不存在的词组xyzq", "expect_doc_n": [], "expect_match_types": [] }
+]

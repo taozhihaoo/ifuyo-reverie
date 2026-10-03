@@ -61,6 +61,8 @@ export async function scanLibrary(libraryRoot) {
             created_at: a.created_at,
             updated_at: a.updated_at,
             selected_text: a.quoted_text ?? null,
+            note: a.note ?? null,
+            position: a.locator?.position ?? null,
           })),
           created_at: meta.created_at,
           captured_at: meta.captured_at ?? null,

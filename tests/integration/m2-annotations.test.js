@@ -74,7 +74,8 @@ test('M2 §43 index rebuild: annotations survive total index loss (projection)',
   const rebuilt = index.entries.find((e) => e.document_id === documentId);
   assert.equal(rebuilt.annotations.length, 1);
   assert.equal(rebuilt.annotations[0].annotation_id, annotation.annotation_id);
-  assert.equal(rebuilt.annotations[0].note ?? null, null); // projection keeps summary fields
+  // projection (M3) now carries the note field for search
+  assert.equal(rebuilt.annotations[0].note, '投影前创建的笔记');
   // and the file itself was never touched
   const raw = await fsp.readFile(path.join(dir, 'annotations.jsonl'), 'utf8');
   assert.ok(raw.includes(annotation.annotation_id));
