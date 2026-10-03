@@ -90,7 +90,7 @@ Infrastructure（索引 / 缓存 / 原子写入 / 日志）
 | Web Extraction | ✅ 成立 | 15 类语料 107/108 硬检查通过 + 1 个根因明确的 XFAIL（见 §10） |
 | Annotation Anchor | ✅ 成立 | 同文档 round-trip / 变化重定位 / 空白损伤 / orphan 保留全部有测试 |
 | EPUB (foliate-js) | ✅ 成立 | Node 容器解析 5/5 + CFI round-trip；**真浏览器**全流程自测 PASS（CFI 逐字符一致） |
-| PDF (PDF.js) | ✅ 成立 | 四类样本全过：解析/文本层/坐标/跨页搜索（100 页 50ms）/扫描件零文本不报错 |
+| PDF (PDF.js) | ✅ 成立 | 四类样本全过：解析/文本层/坐标/跨页搜索（100 页 50ms）/扫描件零文本不报错；渲染管线 Node 侧 PASS（595×842 位图 30ms） |
 | Native Messaging | ✅ Host 成立；浏览器 E2E 为 OPEN QUESTION | 真实进程协议测试 7 例；注册脚本已备 |
 | Index Recovery | ✅ 成立 | 删索引→重建指纹一致；源文件 byte 级不变（测试断言） |
 | Security | ✅ 边界确立 | SECURITY.md 威胁模型 + 15 例安全测试（消毒/scheme/zip-slip/炸弹） |
@@ -141,7 +141,7 @@ Infrastructure（索引 / 缓存 / 原子写入 / 日志）
 - **FACT**：双栏 PDF 文本层完整，栏 x 坐标可区分；**item 顺序 = 内容流顺序而非视觉阅读顺序**（搜索无影响；连续朗读/导出顺序是 M7 已知风险）。
 - **FACT**：扫描 PDF（纯图形）零文本项、不报错 —— `OCR = Not Supported in M0`。
 - **FACT**：文本 item 在词边界任意切分，朴素拼接会断词 —— 搜索需空白归一化（已实现）。
-- **HYPOTHESIS**：canvas 渲染与 Text Layer 的视觉对齐（PDF.js 标准用法）待 M7 在浏览器内验证。
+- **FACT**：渲染管线验证通过 —— PDF.js + @napi-rs/canvas（MIT，dev-only）在 Node 下把 text.pdf 第 1 页渲染为 595×842 非空白位图（~30ms），文本层同页一致；产物 render-out.png（gitignored）。`spikes/pdf/app.js` 保留了浏览器端渲染自测页（内嵌自动化浏览器中渲染 Promise 挂起，疑为该环境的 worker 限制，已记录为已知限制；标准 Chromium 内验证属 M7）。
 
 ## 14. Native Messaging 详细结果
 
@@ -170,7 +170,7 @@ App → Reader Shell → Adapter → Engine 隔离；Annotation Core 独立于�
 | Web Extraction | 15 类语料：13 类全过、1 类正确拒绝、1 类 XFAIL（未闭合 h1 吞正文，根因明确）；newsletter 侧栏丢失量化记录 |
 | Annotation | 同文档/跨节点 round-trip、变化重定位、空白损伤、歧义消解、orphan 保留 — 全部自动化测试覆盖 |
 | EPUB | foliate-js 成立：Node 容器解析 + CFI round-trip；真浏览器全流程 PASS（CFI 逐字符一致） |
-| PDF | PDF.js 成立：解析/文本层/坐标/搜索（100 页 50ms）/扫描件零文本不报错；多栏顺序为 M7 已知风险 |
+| PDF | PDF.js 成立：解析/文本层/坐标/搜索（100 页 50ms）/扫描件零文本不报错；渲染管线 Node 侧 PASS（napi-canvas 位图 30ms）；多栏顺序与 Chromium 内渲染对齐为 M7 已知风险 |
 | Native Messaging | Host 协议 + 契约 + 来源固定 + 大小上限全部真实进程验证；浏览器端 E2E 脚本就绪待用户注册 |
 
 ### 4. Data Format
@@ -202,7 +202,7 @@ SECURITY.md：威胁模型（8 类输入）、消毒策略、URL 白名单、ZIP
 
 ### 13. Known Limitations
 - 浏览器端 Native Messaging E2E 未在本环境执行（需用户级注册表写入）；
-- EPUB/PDF 渲染体验与主题未评估（M6/M7）；
+- EPUB/PDF 渲染体验与主题未评估（M6/M7）；自动化内嵌浏览器中 PDF 渲染 Promise 挂起（Node 渲染已验证，Chromium 内验证待 M7）；
 - 提取语料为合成内容，真实网页仅可本地人工测试（版权约束，语料结构支持随时扩充）;
 - PDF fixtures 文本层为英文（pdf-lib 标准字体无 CJK），CJK 文本层属 M7 验证项。
 

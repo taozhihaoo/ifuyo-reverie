@@ -14,7 +14,8 @@
     "spike:epub:node": "node spikes/epub/run-node.mjs",
     "spike:recovery": "node spikes/recovery/run.mjs",
     "fixtures:pdf": "node spikes/pdf/make-fixtures.mjs",
-    "fixtures:epub": "node spikes/epub/make-fixtures.mjs"
+    "fixtures:epub": "node spikes/epub/make-fixtures.mjs",
+    "spike:pdf:render": "node spikes/pdf/render-node.mjs"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
@@ -24,6 +25,7 @@
     "pdfjs-dist": "^6.4.299"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.10",
     "pdf-lib": "^1.17.1"
   }
 }
