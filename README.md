@@ -23,6 +23,10 @@ M0 不做产品功能，只回答一个问题：
 
 | 文档 | 内容 |
 | --- | --- |
+| [docs/M2-STATUS.md](docs/M2-STATUS.md) | M2 完成报告（Annotation Core） |
+| [docs/ANNOTATIONS.md](docs/ANNOTATIONS.md) | 标注模型、生命周期与 Reader 集成 |
+| [docs/ANNOTATION-FORMAT.md](docs/ANNOTATION-FORMAT.md) | annotations.jsonl 格式规范 |
+| [docs/ANNOTATION-RESOLUTION.md](docs/ANNOTATION-RESOLUTION.md) | 锚点定位与恢复策略 |
 | [docs/M1-STATUS.md](docs/M1-STATUS.md) | M1 完成报告（Web Capture：已实现/已验证/限制/风险/推迟） |
 | [docs/CAPTURE.md](docs/CAPTURE.md) | 采集子系统手册：协议、队列、管线、重复判定、验收清单 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块边界与依赖方向 |
