@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Reverie EPUB Spike</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 1rem; }
+  #reader { display: block; width: 90vw; height: 60vh; min-height: 420px; border: 1px solid #ccc; }
+  pre { background: #f6f6f6; padding: .5rem; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Reverie EPUB Spike — foliate-js</h1>
+<p>流程：Open → TOC → Select → Highlight(CFI) → Persist → Reload → Reopen → Restore → Verify</p>
+<foliate-view id="reader"></foliate-view>
+<pre id="log"></pre>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
