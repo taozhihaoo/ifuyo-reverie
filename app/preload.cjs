@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('reverie', {
   bookSaveProgress: (documentId, last_location) => ipcRenderer.invoke('book:save-progress', { documentId, last_location }),
   bookAddBookmark: (documentId, location) => ipcRenderer.invoke('book:add-bookmark', { documentId, location }),
   exportDocuments: (ids, format, dest) => ipcRenderer.invoke('export:documents', { documentIds: ids, format, destDir: dest }),
+  exportEpub: (documentIds, destDir, { fileName = null, options = {}, mode = 'merge' } = {}) => ipcRenderer.invoke('export:epub', { documentIds, destDir, fileName, options, mode }),
   exportMetadata: (fmt) => ipcRenderer.invoke('export:metadata', { format: fmt }),
   exportHighlights: (fmt) => ipcRenderer.invoke('export:highlights', { format: fmt }),
   pickExportDir: () => ipcRenderer.invoke('dialog:pick-export-dir'),

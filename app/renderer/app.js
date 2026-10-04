@@ -364,6 +364,48 @@ async function showLibrary() {
   for (const e of results) {
     els.list.appendChild(renderLibraryRow(e));
   }
+
+  // M9: current-view batch export (articles only — books/pdf keep their own files)
+  currentViewArticleIds = results
+    .filter((e) => e.type === 'article')
+    .map((e) => e.document_id);
+  const exportBtn = document.getElementById('btn-export-view-epub');
+  if (exportBtn) {
+    exportBtn.hidden = currentViewArticleIds.length === 0;
+    exportBtn.textContent = `导出 EPUB（${currentViewArticleIds.length} 篇合并）`;
+  }
+}
+
+let currentViewArticleIds = [];
+
+async function exportCurrentViewAsEpub() {
+  if (currentViewArticleIds.length === 0) return;
+  const viewLabel = { all: '全部资料', inbox: 'Inbox', unread: '未读', favorites: '收藏', recent: '最近阅读' }[currentView] ?? (activeFeedId ? '订阅源' : currentTags.join('+') || '所选标签');
+  const suggested = `Reverie ${viewLabel} ${new Date().toISOString().slice(0, 10)}`;
+  const bookTitle = prompt(`导出当前视图 ${currentViewArticleIds.length} 篇文章为一个 EPUB（合并成书）。书名：`, suggested);
+  if (bookTitle === null) return;
+  const dest = await reverie.pickExportDir();
+  if (!dest) return;
+  els.queueHint.textContent = '正在导出 EPUB…';
+  try {
+    const result = await reverie.exportEpub(currentViewArticleIds, dest, {
+      fileName: bookTitle,
+      options: { bookTitle, includeHighlights: true, includeNotes: true },
+      mode: 'merge',
+    });
+    if (result.success) {
+      const warn = (result.warnings?.length ?? 0) > 0 ? `；${result.warnings.length} 条警告` : '';
+      const skip = (result.skipped?.length ?? 0) > 0 ? `；跳过 ${result.skipped.length} 篇` : '';
+      els.queueHint.textContent = `已导出：${result.outputPath}（${result.chapterCount} 章${warn}${skip}）`;
+    } else {
+      els.queueHint.textContent = '';
+      alert('导出失败：' + (result.error ?? '未知错误'));
+    }
+  } catch (err) {
+    els.queueHint.textContent = '';
+    alert('导出失败：' + String(err.message ?? err).slice(0, 120));
+  }
+  setTimeout(() => { els.queueHint.textContent = ''; }, 6000);
 }
 
 function renderLibraryRow(e) {
@@ -1060,6 +1102,7 @@ document.getElementById('btn-back').addEventListener('click', () => {
   globalThis.ReveriePdf?.dispose?.();
   showLibrary();
 });
+document.getElementById('btn-export-view-epub').addEventListener('click', () => { exportCurrentViewAsEpub(); });
 document.getElementById('btn-reindex').addEventListener('click', async () => {
   const { count } = await reverie.libraryReindex();
   const { total } = await reverie.searchRefresh();

@@ -143,8 +143,9 @@ export async function exportDocumentsToEpub({
   // ---- collect (document-level failures degrade to skipped, §42/§79)
   const documents = [];
   const skipped = [];
-  for (const entry of uniqueEntries) {
+  for (const rawEntry of uniqueEntries) {
     throwIfCancelled(signal);
+    const entry = { ...rawEntry, path: rawEntry.path ?? rawEntry.dir }; // scan emits dir, index emits path
     try {
       const doc = await collectDocument(libraryRoot, entry, { includeHighlights, includeNotes });
       if (!doc.markdown || doc.markdown.trim().length === 0) {

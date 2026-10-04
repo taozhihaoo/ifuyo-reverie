@@ -372,13 +372,13 @@ function registerIpc() {
           const md = exportDocumentToMarkdown(meta, markdown, annotations);
           await fsp.writeFile(path.join(destDir, safe + '.md'), md);
         } else if (format === 'epub') {
-          const buf = exportArticleToEpub({
-            title: meta.title, author: meta.author ?? null, markdown,
-            publishedAt: meta.published_at ?? null,
-            sourceUrl: meta.source?.canonical_url ?? meta.source?.original_url ?? null,
-            documentId: meta.document_id,
+          // M9: EPUB goes through the advanced export engine (single pipeline)
+          const { exportDocumentsToEpub } = await import('../src/importexport/export/epub-export-service.js');
+          const result = await exportDocumentsToEpub({
+            libraryRoot, entries: [{ document_id: documentId, path: entry.path, title: entry.title }],
+            destDir, fileName: safe,
           });
-          await fsp.writeFile(path.join(destDir, safe + '.epub'), buf);
+          if (!result.success) throw new Error(result.errors?.join('；') ?? 'export failed');
         } else {
           throw new Error('unsupported format: ' + format);
         }
@@ -388,6 +388,41 @@ function registerIpc() {
       }
     }
     return { exported_count: exported.length, failed_count: failed.length, failed, dest: destDir };
+  });
+  // M9: merged/separate advanced EPUB export
+  ipcMain.handle('export:epub', async (_e, { documentIds, destDir, fileName, options = {}, mode = 'merge' }) => {
+    const { exportDocumentsToEpub } = await import('../src/importexport/export/epub-export-service.js');
+    const index = await loadIndex(libraryRoot);
+    const entries = (Array.isArray(documentIds) ? documentIds : [])
+      .map((id) => index.entries.find((e) => e.document_id === id))
+      .filter(Boolean)
+      .map((e) => ({ document_id: e.document_id, path: e.path, title: e.title }));
+    if (entries.length === 0) {
+      return { success: false, error: '未选择要导出的文档', warnings: [], skipped: [] };
+    }
+    try {
+      if (mode === 'separate') {
+        let ok = 0;
+        const failed = [];
+        for (const entry of entries) {
+          try {
+            await exportDocumentsToEpub({
+              libraryRoot, entries: [entry], destDir, options,
+            });
+            ok += 1;
+          } catch (err) {
+            failed.push({ document_id: entry.document_id, title: entry.title, error: err.message });
+          }
+        }
+        return { success: failed.length === 0, mode, exported: ok, failed, warnings: [], skipped: [] };
+      }
+      const result = await exportDocumentsToEpub({
+        libraryRoot, entries, destDir, fileName, options,
+      });
+      return { ...result, mode };
+    } catch (err) {
+      return { success: false, error: err.message, code: err.code ?? null, warnings: [], skipped: [] };
+    }
   });
   ipcMain.handle('export:metadata', async (_e, { format = 'csv' }) => {
     const index = await loadIndex(libraryRoot);

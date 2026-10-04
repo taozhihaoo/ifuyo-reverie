@@ -174,26 +174,11 @@ export function buildEpub(documents, options = {}) {
   const assets = new Map(); // sha key -> {zipPath, doc, sourceRef}
   const files = [];
 
-  // ---- chapters: one per document (multi-doc) or per H1 section (single) (M9 §12)
+  // ---- chapters: Article = EPUB Chapter (M9 §12) — one chapter per document
   const chapterSources = [];
-  if (!isBook) {
-    const single = docs[0];
-    const { blocks } = parseMarkdownBlocks(single.markdown);
-    // split at top-level h1 headings like M5 did, keeping front matter intact
-    let cur = { title: single.title, blocks: [] };
-    const out = [cur];
-    for (const b of blocks) {
-      if (b.type === 'heading' && b.level === 1 && cur.blocks.length > 0) {
-        cur = { title: b.segments?.map((s) => s.v ?? '').join('') || single.title, blocks: [] };
-        out.push(cur);
-      } else cur.blocks.push(b);
-    }
-    for (const c of out) chapterSources.push({ doc: single, title: c.title, blocks: c.blocks });
-  } else {
-    for (const d of docs) {
-      const { blocks } = parseMarkdownBlocks(d.markdown);
-      chapterSources.push({ doc: d, title: d.title, blocks });
-    }
+  for (const d of docs) {
+    const { blocks } = parseMarkdownBlocks(d.markdown);
+    chapterSources.push({ doc: d, title: d.title, blocks });
   }
 
   const chapterTitles = dedupeTitles(chapterSources.map((c) => c.title ?? '无标题'));
