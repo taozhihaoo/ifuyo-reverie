@@ -160,8 +160,14 @@ async function loadArticle(documentId) {
   return { entry, dir, meta, markdown, blocks, canonicalText, service };
 }
 
+let searchIndexReady = Promise.resolve(); // set in whenReady; data IPC gates on it
+
 function registerIpc() {
-  ipcMain.handle('library:list', async () => {
+  const withSearchIndexReady = (fn) => async (...args) => {
+    await searchIndexReady;
+    return fn(...args);
+  };
+  ipcMain.handle('library:list', withSearchIndexReady(async () => {
     const index = await loadIndex(libraryRoot);
     const readState = await loadReadState();
     const jobs = await listJobs(queueDir);
@@ -171,7 +177,7 @@ function registerIpc() {
       read_state: readState.states[e.document_id]?.state ?? 'unread',
     }));
     return { entries, pending_captures: pending, built_at: index.built_at };
-  });
+  }));
 
   ipcMain.handle('article:load', async (_e, documentId) => {
     const loaded = await loadArticle(documentId);
@@ -253,15 +259,15 @@ function registerIpc() {
   });
 
   // ---- M3: search & library views ----
-  ipcMain.handle('library:view', async (_e, { view = 'all', query = '', tags = [], sort = 'captured', limit = 200, offset = 0 }) => {
+  ipcMain.handle('library:view', withSearchIndexReady(async (_e, { view = 'all', query = '', tags = [], sort = 'captured', limit = 200, offset = 0 }) => {
     const results = await queryLibrary(query, { view, tags, sort, limit, offset, libraryRoot });
     return { ...results, counts: viewCounts(), tag_facets: tagFacets() };
-  });
+  }));
 
-  ipcMain.handle('search:query', async (_e, { query, limit = 50, offset = 0 }) => {
+  ipcMain.handle('search:query', withSearchIndexReady(async (_e, { query, limit = 50, offset = 0 }) => {
     await refreshSearchIndex(libraryRoot).catch(() => {});
     return search(query, { limit, offset });
-  });
+  }));
 
   ipcMain.handle('search:refresh', async () => {
     invalidateSearchIndex();
@@ -724,6 +730,9 @@ app.whenReady().then(async () => {
   await runQueueIfIdle();
   await loadSearchIndex(libraryRoot).catch(() => {});
   await refreshSearchIndex(libraryRoot).catch((e) => console.error('[reverie] search refresh:', e.message)); // process what accumulated while the app was closed (M1 §5.1)
+  // cold-start fix (M12): the renderer may have queried before the search
+  // index was ready — tell it to re-query now that the index is built
+  broadcast('library:changed');
   void openFilesFromArgs(process.argv);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
