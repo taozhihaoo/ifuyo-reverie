@@ -23,6 +23,12 @@ M0 不做产品功能，只回答一个问题：
 
 | 文档 | 内容 |
 | --- | --- |
+| [docs/M4-STATUS.md](docs/M4-STATUS.md) | M4 完成报告（RSS / Feed 订阅） |
+| [docs/RSS.md](docs/RSS.md) | RSS 内容规则：格式/归一化/去重/安全 |
+| [docs/FEEDS.md](docs/FEEDS.md) | 订阅管理：模型/持久化/操作规则 |
+| [docs/NETWORK.md](docs/NETWORK.md) | 网络策略：超时/重定向/重试/私网/取消 |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | 关键设计决定记录 |
+| [docs/PROGRESS.md](docs/PROGRESS.md) | 里程碑进度清单 |
 | [docs/M3-STATUS.md](docs/M3-STATUS.md) | M3 完成报告（搜索与资料库） |
 | [docs/SEARCH.md](docs/SEARCH.md) | 全局搜索：字段/语法/排序/导航 |
 | [docs/LIBRARY.md](docs/LIBRARY.md) | 资料库视图：Inbox/Recent/Favorites/未读/标签 |
