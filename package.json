@@ -1,6 +1,6 @@
 {
   "name": "ifuyo-reverie",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "ifuyo Reverie — Windows-first, local-first, file-native personal reading archive. M0: foundation & risk spikes.",
   "type": "module",
