@@ -18,6 +18,7 @@
     "spike:pdf:render": "node spikes/pdf/render-node.mjs",
     "app": "electron .",
     "doctor": "node scripts/doctor.mjs",
+    "smoke:pdf": "node scripts/smoke-pdf.mjs",
     "bench:m3": "node spikes/bench-m3.mjs",
     "bench:m5": "node spikes/bench-m5.mjs"
   },

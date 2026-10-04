@@ -30,6 +30,7 @@
       <input id="feed-url" type="text" placeholder="RSS / Atom URL，回车添加" spellcheck="false">
     </div>
     <button id="btn-add-epub" type="button" class="facet">+ 添加 EPUB</button>
+    <button id="btn-add-pdf" type="button" class="facet">+ 添加 PDF</button>
     <h3>标签</h3>
     <div id="tag-facets"></div>
   </nav>
@@ -47,6 +48,14 @@
       <button id="btn-annotations" type="button">标注 (<span id="annotation-count">0</span>)</button>
       <button id="btn-toc" type="button">目录</button>
       <button id="btn-bookmark" type="button" hidden>书签</button>
+      <div id="pdf-controls" hidden>
+        <button id="pdf-prev" type="button" title="上一页（←）">◀</button>
+        <span id="pdf-indicator">第 <span id="pdf-cur">1</span> / <span id="pdf-total">1</span> 页 <span id="pdf-label"></span></span>
+        <button id="pdf-next" type="button" title="下一页（→）">▶</button>
+        <button id="pdf-zoom-out" type="button" title="缩小">－</button>
+        <span id="pdf-zoom-label">100%</span>
+        <button id="pdf-zoom-in" type="button" title="放大">＋</button>
+      </div>
       <button id="btn-export-md" type="button">导出 MD</button>
       <button id="btn-export-epub" type="button">导出 EPUB</button>
       <div id="reader-meta"></div>
@@ -75,5 +84,6 @@
 
 <script src="reader-anchor.js"></script>
 <script src="app.js"></script>
+<script type="module" src="pdf-view.js"></script>
 </body>
 </html>

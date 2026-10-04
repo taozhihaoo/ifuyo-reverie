@@ -68,6 +68,9 @@ async function loadArticle(documentId) {
       getReaderContext: async () => ({ canonicalText }),
     });
     const readState = await loadReadState();
+    // last_location lives in user-state.json (M3 §7), not read-state.json —
+    // reading progress was persisted via updateUserState (M6 §26/M7 §40)
+    const userState = await loadUserState();
     return {
       entry, dir,
       meta: { ...entry, title: entry.title },
@@ -80,7 +83,50 @@ async function loadArticle(documentId) {
       canonicalText,
       service,
       read_state: readState.states[documentId]?.state ?? 'unread',
-      last_location: readState.states[documentId]?.last_location ?? null,
+      last_location: userState.states[documentId]?.last_location ?? null,
+    };
+  }
+
+  // M7: PDF documents are read via the PDF Reader Adapter
+  if (entry.type === 'pdf') {
+    const {
+      openPdfDocument, closePdfDocument, extractPdfPages, extractPdfMeta,
+      extractPdfOutline, extractPdfPageLabels, pdfCanonicalText, pdfPageSpans,
+    } = await import('../src/reader/pdf-reader-core.js');
+    const doc = await openPdfDocument(path.join(dir, 'document.pdf'));
+    let pages, pdfMeta, outline, labels;
+    try {
+      pages = await extractPdfPages(doc);
+      pdfMeta = await extractPdfMeta(doc);
+      outline = await extractPdfOutline(doc);
+      labels = await extractPdfPageLabels(doc);
+    } finally {
+      await closePdfDocument(doc);
+    }
+    // canonical = page texts joined with no separator — byte-identical to the
+    // renderer's pdf.js TextLayer DOM concatenation (M7 §13)
+    const canonicalText = pdfCanonicalText(pages);
+    const service = createAnnotationService({
+      articleDir: dir,
+      documentId,
+      getReaderContext: async () => ({ canonicalText }),
+    });
+    const readState = await loadReadState();
+    return {
+      entry, dir,
+      meta: { ...entry, title: entry.title, pdf_meta: pdfMeta },
+      type: 'pdf',
+      pages: pages.map((p) => ({
+        index: p.index, width: p.width, height: p.height,
+        rotation: p.rotation, has_text: p.text.length > 0,
+      })),
+      page_spans: pdfPageSpans(pages),
+      canonicalText,
+      outline,
+      page_labels: labels,
+      service,
+      read_state: readState.states[documentId]?.state ?? 'unread',
+      last_location: (await loadUserState()).states[documentId]?.last_location ?? null,
     };
   }
 
@@ -122,6 +168,18 @@ function registerIpc() {
       return {
         meta: loaded.meta, type: 'book', dir: loaded.dir,
         chapters: loaded.chapters, canonicalText: loaded.canonicalText,
+        annotations, diagnostics: { invalid, duplicates },
+        read_state: readState.states[documentId]?.state ?? 'unread',
+        last_location: loaded.last_location ?? null,
+        path: loaded.entry.path,
+      };
+    }
+    if (loaded.type === 'pdf') {
+      return {
+        meta: loaded.meta, type: 'pdf', dir: loaded.dir,
+        pages: loaded.pages, page_spans: loaded.page_spans,
+        canonicalText: loaded.canonicalText, outline: loaded.outline,
+        page_labels: loaded.page_labels,
         annotations, diagnostics: { invalid, duplicates },
         read_state: readState.states[documentId]?.state ?? 'unread',
         last_location: loaded.last_location ?? null,
@@ -248,9 +306,51 @@ function registerIpc() {
   });
   ipcMain.handle('book:add-bookmark', async (_e, { documentId, location }) => {
     const loaded = await loadArticle(documentId);
-    if (loaded.type !== 'book') throw new Error('bookmarks are only supported for books');
+    // books use {chapter_index}, PDFs use {page_index} — same annotation type
+    if (loaded.type !== 'book' && loaded.type !== 'pdf') throw new Error('bookmarks are only supported for paged readers');
     const { annotation } = await loaded.service.createBookmark({ location });
     return annotation;
+  });
+  ipcMain.handle('dialog:pick-pdf', async () => {
+    const r = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    return r.canceled ? null : r.filePaths[0];
+  });
+  ipcMain.handle('pdf:add', async (_e, { sourcePath }) => {
+    const { addPdfBook } = await import('../src/reader/pdf-library.js');
+    const result = await addPdfBook(libraryRoot, sourcePath);
+    invalidateSearchIndex();
+    await rebuildIndex(libraryRoot).catch(() => {});
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return result;
+  });
+  // M7: PDF bytes for the renderer's pdf.js. Fixed library-internal filename,
+  // no user-supplied path components; the original file is never written to.
+  ipcMain.handle('pdf:get-data', async (_e, { documentId }) => {
+    const loaded = await loadArticle(documentId);
+    if (loaded.type !== 'pdf') throw new Error('not a pdf document');
+    return fsp.readFile(path.join(loaded.dir, 'document.pdf'));
+  });
+  // M7: pdf.js runtime assets (cmaps/standard_fonts/wasm) for the renderer.
+  // file:// fetch is not available to the sandboxed renderer, so pdf.js's
+  // BinaryDataFactory is routed through this IPC. Names are validated against
+  // the vendored allowlist dirs — no traversal, no arbitrary reads.
+  const VENDOR_DIRS = new Set(['cmaps', 'standard_fonts', 'wasm']);
+  const VENDOR_EXTENSIONS = new Set(['.bcmap', '.ttf', '.otf', '.pfb', '.ttc', '.wasm', '.js']);
+  ipcMain.handle('pdf:vendor-data', async (_e, { name }) => {
+    if (typeof name !== 'string' || name.length === 0 || name.length > 200) {
+      throw new Error('invalid vendor asset name');
+    }
+    const [dir, ...rest] = name.split('/');
+    if (!VENDOR_DIRS.has(dir) || rest.length !== 1) throw new Error('invalid vendor asset path');
+    const file = rest[0];
+    if (!VENDOR_EXTENSIONS.has(path.extname(file)) || file.includes('..') || file.includes('\\')) {
+      throw new Error('invalid vendor asset file');
+    }
+    return fsp.readFile(path.join(here, 'vendor', 'pdfjs', dir, file));
   });
   ipcMain.handle('export:documents', async (_e, { documentIds, format = 'markdown', destDir }) => {
     if (!Array.isArray(documentIds) || documentIds.length === 0) return { exported_count: 0, failed_count: 0, failed: [] };
@@ -315,8 +415,8 @@ function registerIpc() {
     if (format === 'json') return exportHighlightsJson(items);
     return exportHighlightsMarkdown(items);
   });
-  ipcMain.handle('review:queue', async (_e, { strategy, limit }) => {
-    return buildReviewQueue(libraryRoot, { strategy, limit });
+  ipcMain.handle('review:queue', async (_e, { strategy, limit, date }) => {
+    return buildReviewQueue(libraryRoot, { strategy, limit, date });
   });
   ipcMain.handle('review:mark', async (_e, { items }) => {
     await markReviewed(items ?? []);
@@ -334,80 +434,6 @@ function registerIpc() {
     await rebuildIndex(libraryRoot).catch(() => {});
     broadcast('library:changed');
     return report;
-  });
-  ipcMain.handle('export:documents', async (_e, { documentIds, format = 'markdown', destDir }) => {
-    await fsp.mkdir(destDir, { recursive: true });
-    const exported = [];
-    const failed = [];
-    for (const documentId of documentIds) {
-      try {
-        const index = await loadIndex(libraryRoot);
-        const entry = index.entries.find((e) => e.document_id === documentId);
-        if (!entry) throw new Error(`unknown document: ${documentId}`);
-        const dir = path.join(libraryRoot, entry.path);
-        const meta = await verifyArticleDir(dir);
-        const markdown = await fsp.readFile(path.join(dir, 'article.md'), 'utf8');
-        const { readAnnotationsFile } = await import('../src/annotation/store.js');
-        const { annotations } = await readAnnotationsFile(path.join(dir, 'annotations.jsonl'));
-        const safe = (meta.title || meta.document_id).replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
-        if (format === 'markdown') {
-          const md = exportDocumentToMarkdown(meta, markdown, annotations);
-          await fsp.writeFile(path.join(destDir, `${safe}.md`), md);
-        } else if (format === 'epub') {
-          const buf = exportArticleToEpub({
-            title: meta.title, author: meta.author ?? null, markdown,
-            publishedAt: meta.published_at ?? null,
-            sourceUrl: meta.source?.canonical_url ?? meta.source?.original_url ?? null,
-            documentId: meta.document_id,
-          });
-          await fsp.writeFile(path.join(destDir, `${safe}.epub`), buf);
-        } else {
-          throw new Error(`unsupported export format: ${format}`);
-        }
-        exported.push({ document_id: documentId, title: meta.title });
-      } catch (err) {
-        failed.push({ document_id: documentId, error: err.message });
-      }
-    }
-    return { exported_count: exported.length, failed_count: failed.length, failed, dest: destDir };
-  });
-  ipcMain.handle('export:metadata', async (_e, { format = 'csv' }) => {
-    const index = await loadIndex(libraryRoot);
-    const readState = await loadReadState();
-    const stateAdapter = (id) => {
-      const st = readState.states[id];
-      return {
-        read: st?.read ?? false,
-        favorite: st?.favorite ?? false,
-        inbox: st?.inbox ?? false,
-        tags: st?.tags ?? [],
-      };
-    };
-    if (format === 'json') return exportMetadataJson(index.entries, stateAdapter);
-    return exportMetadataCsv(index.entries, stateAdapter);
-  });
-  ipcMain.handle('export:highlights', async (_e, { format = 'markdown' }) => {
-    const index = await loadIndex(libraryRoot);
-    const { readAnnotationsFile } = await import('../src/annotation/store.js');
-    const items = [];
-    for (const entry of index.entries) {
-      try {
-        const dir = path.join(libraryRoot, entry.path);
-        const { annotations } = await readAnnotationsFile(path.join(dir, 'annotations.jsonl'));
-        for (const a of annotations) {
-          items.push({ annotation: a, document: { document_id: entry.document_id, title: entry.title, url: entry.canonical_url ?? entry.original_url ?? null } });
-        }
-      } catch { /* skip broken annotation files — diagnostics via doctor */ }
-    }
-    if (format === 'json') return exportHighlightsJson(items);
-    return exportHighlightsMarkdown(items);
-  });
-  ipcMain.handle('review:queue', async (_e, { strategy, limit, date }) => {
-    return buildReviewQueue(libraryRoot, { strategy, limit, date });
-  });
-  ipcMain.handle('review:mark', async (_e, { items }) => {
-    await markReviewed(items ?? []);
-    return { ok: true };
   });
   ipcMain.handle('review:article-context', async (_e, { documentId }) => {
     const index = await loadIndex(libraryRoot);

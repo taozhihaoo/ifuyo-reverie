@@ -9,6 +9,10 @@
  */
 /* global reverie, ReaderAnchor */
 
+// pdf-view.js (module) resolves this once pdf.js is ready (M7)
+window.__reveriePdfReady = new Promise((resolve) => { window.__reveriePdfResolve = resolve; });
+window.__reverieReapplyHighlights = () => { if (currentDoc) applyHighlights(currentDoc.annotations); };
+
 // ============================================================ blocks -> DOM
 function renderSegments(parent, segments, ctx) {
   for (const s of segments) {
@@ -214,6 +218,28 @@ async function renderFeedList() {
         alert('EPUB 添加失败：' + String(err.message ?? err).slice(0, 80));
       }
       addBtn.disabled = false;
+    });
+  }
+  // M7: PDF add button (wire once); typed PDF errors surface readable text
+  const pdfBtn = document.getElementById('btn-add-pdf');
+  if (pdfBtn && !pdfBtn.dataset.wired) {
+    pdfBtn.dataset.wired = '1';
+    pdfBtn.addEventListener('click', async () => {
+      const p = await reverie.pickPdf();
+      if (!p) return;
+      pdfBtn.disabled = true;
+      try {
+        await reverie.pdfAdd(p);
+        await showLibrary();
+      } catch (err) {
+        const msg = String(err.message ?? err);
+        const friendly = msg.includes('PASSWORD_REQUIRED') ? '此 PDF 受密码保护，暂不支持'
+          : msg.includes('TOO_LARGE') ? 'PDF 文件过大'
+          : msg.includes('PAGE_LIMIT') ? 'PDF 页数超出支持范围'
+          : 'PDF 添加失败';
+        alert(friendly + '：' + msg.slice(0, 80));
+      }
+      pdfBtn.disabled = false;
     });
   }
 }
@@ -540,6 +566,22 @@ async function openSearchMatch({ documentId, match }) {
     }
     navigateTo(annotation);
   } else if (match.type === 'body' && match.term) {
+    if (currentDoc.type === 'pdf') {
+      // M7 §97: global search → open PDF at the page holding the match.
+      // Locate via canonical (DOM text may not be built yet for that page).
+      const spans = currentDoc.page_spans ?? [];
+      const text = (currentDoc.canonicalText ?? '').toLowerCase();
+      const idx = text.indexOf(match.term.toLowerCase());
+      if (idx !== -1) {
+        const span = spans.find((s) => idx >= s.start && idx < s.end);
+        await globalThis.ReveriePdf?.revealOffset(idx);
+        const range = ReaderAnchor.rangeForOffsets(
+          document.getElementById('reader-content'), idx, idx + match.term.length);
+        flashRange(range);
+        void span;
+      }
+      return;
+    }
     const index = ReaderAnchor.textIndex(document.getElementById('reader-content'));
     const idx = index.text.toLowerCase().indexOf(match.term.toLowerCase());
     if (idx !== -1) {
@@ -598,9 +640,14 @@ function renderPanel(annotations) {
     li.className = `ann ${a.status}`;
     const quote = document.createElement('p');
     quote.className = 'ann-quote';
-    quote.textContent = a.type === 'bookmark'
-      ? `🔖 书签 · 第 ${(a.locator?.location?.chapter_index ?? 0) + 1} 章`
-      : (a.quoted_text ?? '(无锚点笔记)');
+    if (a.type === 'bookmark') {
+      const loc = a.locator?.location ?? {};
+      const unit = loc.chapter_index !== undefined ? '章' : '页';
+      const num = (loc.chapter_index ?? loc.page_index ?? 0) + 1;
+      quote.textContent = `🔖 书签 · 第 ${num} ${unit}`;
+    } else {
+      quote.textContent = a.quoted_text ?? '(无锚点笔记)';
+    }
     li.appendChild(quote);
     if (a.status === 'orphaned') {
       const warn = document.createElement('p');
@@ -691,24 +738,40 @@ async function openArticle(documentId) {
     "保存于 " + fmtDate(loaded.meta.captured_at),
   ].filter(Boolean).join(" · ");
   els.content.textContent = "";
+  // reset scroll BEFORE the branches: any later scroll (after the IPC awaits
+  // below) would race the readers' position restore (M6 §26 / M7 §41)
+  window.scrollTo(0, 0);
 
   if (loaded.type === "book") {
+    globalThis.ReveriePdf?.dispose?.();
     renderBookChapters(loaded);
     buildBookToc(loaded);
     setupBookProgress(documentId);
+    setPdfControlsVisible(false);
+  } else if (loaded.type === "pdf") {
+    if (!globalThis.ReveriePdf) await window.__reveriePdfReady;
+    detachBookProgressListener();
+    buildBookToc(loaded);
+    await globalThis.ReveriePdf.init(loaded, els.content, {
+      onProgress: pdfProgressSaver(documentId),
+    });
+    setPdfControlsVisible(true);
   } else {
+    globalThis.ReveriePdf?.dispose?.();
+    detachBookProgressListener();
     const ctx = { resolveImage: async (rel) => await reverie.articleResolvePath(documentId, rel) };
     els.content.appendChild(renderBlocks(loaded.blocks, ctx));
+    setPdfControlsVisible(false);
   }
-  document.getElementById('btn-bookmark').hidden = loaded.type !== 'book';
+  document.getElementById('btn-bookmark').hidden = !(loaded.type === 'book' || loaded.type === 'pdf');
   renderPanel(loaded.annotations);
   requestAnimationFrame(() => applyHighlights(loaded.annotations));
 
   const entry = (await reverie.libraryList()).entries.find((e) => e.document_id === documentId);
   if (entry?.read_state !== "read") await reverie.articleReadState(documentId, "read");
-  // M6 §26: restore last reading position after layout settles
+  // M6 §26: restore last reading position after layout settles — this is the
+  // LAST scroll action of openArticle; nothing may reset it afterwards
   requestAnimationFrame(() => restoreBookProgress(loaded));
-  window.scrollTo(0, 0);
 }
 
 // ---- M6: EPUB chapters (sanitized XHTML from main; safe under CSP) ----
@@ -730,6 +793,48 @@ function buildBookToc(loaded) {
   const toc = document.getElementById("book-toc");
   const list = document.getElementById("book-toc-list");
   list.textContent = "";
+  if (loaded.type === "pdf") {
+    // outline tree (M7 §18); corrupt nodes keep their title but are disabled —
+    // a broken entry never blocks the document (M7 §19)
+    const addItems = (nodes, depth) => {
+      for (const n of nodes) {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.style.paddingLeft = `${8 + depth * 14}px`;
+        b.textContent = n.title || (n.page_index != null ? `第 ${n.page_index + 1} 页` : "（无标题）");
+        if (n.page_index == null) {
+          b.disabled = true;
+        } else {
+          b.addEventListener("click", () => {
+            globalThis.ReveriePdf?.scrollToPage(n.page_index);
+            toc.hidden = true;
+          });
+        }
+        li.appendChild(b);
+        list.appendChild(li);
+        if (n.children?.length) addItems(n.children, depth + 1);
+      }
+    };
+    if (loaded.outline?.length > 0) {
+      addItems(loaded.outline, 0);
+    } else {
+      // no outline → page list fallback
+      for (let i = 0; i < loaded.pages.length; i++) {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = `第 ${i + 1} 页`;
+        b.addEventListener("click", () => {
+          globalThis.ReveriePdf?.scrollToPage(i);
+          toc.hidden = true;
+        });
+        li.appendChild(b);
+        list.appendChild(li);
+      }
+    }
+    return;
+  }
   for (const ch of loaded.chapters) {
     const li = document.createElement("li");
     const b = document.createElement("button");
@@ -762,13 +867,16 @@ function bookProgressFromDom() {
 }
 
 function gotoBookLocation(loc) {
-  if (typeof loc?.chapter_index !== 'number') return;
-  const sec = els.content.querySelector(`.book-chapter[data-chapter-index='${loc.chapter_index}']`);
-  if (!sec) return;
-  const rect = sec.getBoundingClientRect();
-  const top = rect.top + window.scrollY;
-  const ratio = typeof loc.scroll_ratio === 'number' ? Math.min(1, Math.max(0, loc.scroll_ratio)) : 0;
-  window.scrollTo({ top: Math.max(0, Math.round(top + rect.height * ratio - window.innerHeight * 0.3)), behavior: 'smooth' });
+  if (typeof loc?.chapter_index === 'number') {
+    const sec = els.content.querySelector(`.book-chapter[data-chapter-index='${loc.chapter_index}']`);
+    if (!sec) return;
+    const rect = sec.getBoundingClientRect();
+    const top = rect.top + window.scrollY;
+    const ratio = typeof loc.scroll_ratio === 'number' ? Math.min(1, Math.max(0, loc.scroll_ratio)) : 0;
+    window.scrollTo({ top: Math.max(0, Math.round(top + rect.height * ratio - window.innerHeight * 0.3)), behavior: 'smooth' });
+  } else if (typeof loc?.page_index === 'number') {
+    globalThis.ReveriePdf?.scrollToPage(loc.page_index, loc.scroll_ratio ?? 0);
+  }
 }
 
 let progressTimer = null;
@@ -786,6 +894,30 @@ function setupBookProgress(documentId) {
   };
   window.__revProgressListener = listener;
   window.addEventListener('scroll', listener, { passive: true });
+}
+
+function detachBookProgressListener() {
+  const prev = window.__revProgressListener;
+  if (prev) window.removeEventListener('scroll', prev);
+  window.__revProgressListener = null;
+}
+
+// ---- M7: PDF progress (page_index unit) — pdf-view detects scrolls, this
+// debounces the user-state write and refuses stale cross-document writes.
+function pdfProgressSaver(documentId) {
+  let timer = null;
+  return (loc) => {
+    if (!currentDoc || currentDoc.documentId !== documentId || currentDoc.type !== 'pdf') return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (!currentDoc || currentDoc.documentId !== documentId || currentDoc.type !== 'pdf') return;
+      reverie.bookSaveProgress(documentId, loc).catch(() => {});
+    }, 400);
+  };
+}
+
+function setPdfControlsVisible(visible) {
+  document.getElementById('pdf-controls').hidden = !visible;
 }
 
 function restoreBookProgress(loaded) {
@@ -819,11 +951,21 @@ function runBookSearch() {
   bookSearchList.textContent = '';
   const term = bookSearchInput.value.trim();
   const text = currentDoc?.canonicalText;
-  if (!term || !text || currentDoc.type !== 'book') return;
+  if (!term || !text || (currentDoc.type !== 'book' && currentDoc.type !== 'pdf')) return;
   const lower = text.toLowerCase();
   const lowerTerm = term.toLowerCase();
-  const spans = bookChapterOffsets(currentDoc);
-  const chapterAt = (off) => spans.find((s) => off >= s.start && off < s.end) ?? spans[spans.length - 1];
+  const isPdf = currentDoc.type === 'pdf';
+  const spans = isPdf
+    ? (currentDoc.page_spans ?? [])
+    : bookChapterOffsets(currentDoc);
+  if (spans.length === 0) return;
+  const spanAt = (off) => spans.find((s) => off >= s.start && off < s.end) ?? spans[spans.length - 1];
+  const spanTitle = (s) => {
+    if (!isPdf) return s.title || `第 ${s.index + 1} 章`;
+    const label = globalThis.ReveriePdf?.pageLabel?.(s.index);
+    const idx = String(s.index + 1);
+    return `第 ${idx} 页` + (label && label !== idx ? `（标签 ${label}）` : '');
+  };
   const MAX = 200;
   let hits = 0;
   let from = 0;
@@ -832,18 +974,19 @@ function runBookSearch() {
     if (i === -1) break;
     from = i + lowerTerm.length;
     hits += 1;
-    const ch = chapterAt(i);
+    const span = spanAt(i);
     const snippet = text.slice(Math.max(0, i - 20), Math.min(text.length, i + term.length + 30)).replace(/\s+/g, ' ');
     const li = document.createElement('li');
     const head = document.createElement('p');
     head.className = 'bs-chapter';
-    head.textContent = ch.title || `第 ${ch.index + 1} 章`;
+    head.textContent = spanTitle(span);
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'bs-hit';
     row.appendChild(snippetWithMark(snippet, term));
-    row.addEventListener('click', () => {
-      // canonical offsets are valid in the DOM: both sides share one text (M6 §33)
+    row.addEventListener('click', async () => {
+      // canonical offsets are valid in the DOM: both sides share one text (M6 §33 / M7 §13)
+      if (isPdf) await globalThis.ReveriePdf?.revealOffset(i);
       const range = ReaderAnchor.rangeForOffsets(els.content, i, i + term.length);
       flashRange(range);
       document.getElementById('book-toc').hidden = true;
@@ -900,7 +1043,10 @@ for (const b of document.querySelectorAll('[data-view]')) {
     showLibrary();
   });
 }
-document.getElementById('btn-back').addEventListener('click', showLibrary);
+document.getElementById('btn-back').addEventListener('click', () => {
+  globalThis.ReveriePdf?.dispose?.();
+  showLibrary();
+});
 document.getElementById('btn-reindex').addEventListener('click', async () => {
   const { count } = await reverie.libraryReindex();
   const { total } = await reverie.searchRefresh();
@@ -910,14 +1056,30 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
 document.getElementById('btn-annotations').addEventListener('click', () => { panel.hidden = !panel.hidden; });
 document.getElementById('btn-toc').addEventListener('click', () => { const t = document.getElementById('book-toc'); t.hidden = !t.hidden; });
 document.getElementById('btn-bookmark').addEventListener('click', async () => {
-  if (!currentDoc || currentDoc.type !== 'book') return;
+  if (!currentDoc || (currentDoc.type !== 'book' && currentDoc.type !== 'pdf')) return;
   try {
-    await reverie.bookAddBookmark(currentDoc.documentId, bookProgressFromDom());
+    const location = currentDoc.type === 'pdf'
+      ? (globalThis.ReveriePdf?.progressFromDom?.() ?? { page_index: 0 })
+      : bookProgressFromDom();
+    await reverie.bookAddBookmark(currentDoc.documentId, location);
     await refreshAnnotations();
   } catch (err) {
     console.error('bookmark failed:', err.message);
   }
 });
+// M7 §46: PDF page navigation keyboard support (left/right in reader)
+document.addEventListener('keydown', (ev) => {
+  if (!currentDoc || currentDoc.type !== 'pdf' || els.reader.hidden) return;
+  const target = ev.target;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+  if (ev.key === 'ArrowLeft') { ev.preventDefault(); globalThis.ReveriePdf?.prevPage(); }
+  else if (ev.key === 'ArrowRight') { ev.preventDefault(); globalThis.ReveriePdf?.nextPage(); }
+});
+// M7 §11: PDF page/zoom controls
+document.getElementById('pdf-prev').addEventListener('click', () => globalThis.ReveriePdf?.prevPage());
+document.getElementById('pdf-next').addEventListener('click', () => globalThis.ReveriePdf?.nextPage());
+document.getElementById('pdf-zoom-in').addEventListener('click', () => globalThis.ReveriePdf?.zoomBy(1.2));
+document.getElementById('pdf-zoom-out').addEventListener('click', () => globalThis.ReveriePdf?.zoomBy(1 / 1.2));
 
 document.getElementById('btn-export-md').addEventListener('click', async () => {
   if (!currentDoc) return;
