@@ -19,6 +19,7 @@
     "app": "electron .",
     "doctor": "node scripts/doctor.mjs",
     "smoke:pdf": "node scripts/smoke-pdf.mjs",
+    "smoke:tts": "node scripts/smoke-tts.mjs",
     "bench:m3": "node spikes/bench-m3.mjs",
     "bench:m5": "node spikes/bench-m5.mjs"
   },
