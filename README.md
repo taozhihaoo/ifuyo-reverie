@@ -23,6 +23,7 @@ M0 不做产品功能，只回答一个问题：
 
 | 文档 | 内容 |
 | --- | --- |
+| [docs/M6-STATUS.md](docs/M6-STATUS.md) | M6 完成报告（EPUB Reader） |
 | [docs/M5-STATUS.md](docs/M5-STATUS.md) | M5 完成报告（导入导出与每日回顾） |
 | [docs/IMPORT.md](docs/IMPORT.md) | 导入：来源/格式/去重/幂等/Provenance |
 | [docs/EXPORT.md](docs/EXPORT.md) | 导出：Markdown/EPUB/Metadata/Highlights |

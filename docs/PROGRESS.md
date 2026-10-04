@@ -47,6 +47,18 @@
 OPML 导入导出、Podcast、自动定时刷新（Scheduler）、网页全文自动抓取、
 JSON Feed、RSS 条目版本历史（content_hash+updated_at 已为 M10 留接口）。
 
-## M5-M12
+## M5 — Import / Export / Daily Review ✅
 
-未开始（顺序见 docs/M3-STATUS.md 与总纲领）。
+Pocket/Wallabag/Raindrop 导入（幂等+provenance+部分失败容忍）、Markdown/EPUB 3/Metadata/Highlights 导出、
+Daily Review（确定性队列）；1,000 条导入 9.4s/条均写、幂等重导 607ms（PERF.md）。
+
+## M6 — EPUB Reader ✅
+
+EPUB 2/3 解析（自研 over jsdom，DOCTYPE/XXE 防线）、TOC 双通道（nav+NCX）、
+书库（books/<id>/book.epub 不可变）、滚动式章节阅读、全书 text-quote 标注（复用 M2）、
+进度 last_location（user-state，与渲染解耦）、书正文进入全局搜索。
+限制：滚动式而非 foliate-js 分页视图、text-quote 而非 CFI（漂移已记录）、FL/Overlays 未做。
+
+## M7-M12
+
+未开始（顺序见总纲领：PDF → TTS → 导出增强 → 稳定性 → 产品化 → 自用 1.0）。
