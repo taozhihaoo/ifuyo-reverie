@@ -692,9 +692,11 @@ function renderPanel(annotations) {
     quote.className = 'ann-quote';
     if (a.type === 'bookmark') {
       const loc = a.locator?.location ?? {};
-      const unit = loc.chapter_index !== undefined ? '章' : '页';
-      const num = (loc.chapter_index ?? loc.page_index ?? 0) + 1;
-      quote.textContent = `🔖 书签 · 第 ${num} ${unit}`;
+      const unit = loc.chapter_index !== undefined ? '章' : loc.page_index !== undefined ? '页' : '文中位置';
+      const num = (loc.chapter_index ?? loc.page_index ?? loc.offset ?? 0);
+      quote.textContent = Number.isInteger(num) && (loc.chapter_index !== undefined || loc.page_index !== undefined)
+        ? `🔖 书签 · 第 ${num + 1} ${unit}`
+        : `🔖 书签`;
     } else {
       quote.textContent = a.quoted_text ?? '(无锚点笔记)';
     }
@@ -933,6 +935,10 @@ function gotoBookLocation(loc) {
     window.scrollTo({ top: Math.max(0, Math.round(top + rect.height * ratio - window.innerHeight * 0.3)), behavior: 'smooth' });
   } else if (typeof loc?.page_index === 'number') {
     globalThis.ReveriePdf?.scrollToPage(loc.page_index, loc.scroll_ratio ?? 0);
+  } else if (typeof loc?.offset === 'number') {
+    // article bookmark: canonical offset → range → center
+    const range = ReaderAnchor.rangeForOffsets(els.content, loc.offset, Math.min(loc.offset + 1, els.content.textContent.length));
+    range?.startContainer.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 
@@ -1136,6 +1142,25 @@ document.getElementById('btn-library-change').addEventListener('click', async ()
 
 document.getElementById('btn-library-open').addEventListener('click', () => reverie.appOpenLibraryFolder());
 document.getElementById('btn-logs-open').addEventListener('click', () => reverie.appOpenLogs());
+// M4: RSS subscribe (the input existed since M4 but was never wired — caught
+// by the M12 journey; Enter adds the feed, refresh shows up per-row)
+document.getElementById('feed-url').addEventListener('keydown', async (ev) => {
+  if (ev.key !== 'Enter') return;
+  const input = ev.target;
+  const url = input.value.trim();
+  if (!url) return;
+  input.value = '';
+  input.placeholder = '正在订阅…';
+  try {
+    const result = await reverie.feedsAdd(url);
+    input.placeholder = result.duplicate ? '该订阅已存在' : '已订阅，刷新按钮获取文章';
+  } catch (err) {
+    input.placeholder = '订阅失败';
+    alert('订阅失败：' + String(err.message ?? err).slice(0, 140) + '\n（Reverie 未修改任何本地资料）');
+  }
+  await renderFeedList();
+  setTimeout(() => { input.placeholder = 'RSS / Atom URL，回车添加'; }, 4000);
+});
 refreshLibraryLocation();
 refreshAppInfoLine();
 
@@ -1258,11 +1283,26 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
 document.getElementById('btn-annotations').addEventListener('click', () => { panel.hidden = !panel.hidden; });
 document.getElementById('btn-toc').addEventListener('click', () => { const t = document.getElementById('book-toc'); t.hidden = !t.hidden; });
 document.getElementById('btn-bookmark').addEventListener('click', async () => {
-  if (!currentDoc || (currentDoc.type !== 'book' && currentDoc.type !== 'pdf')) return;
+  if (!currentDoc) return;
   try {
-    const location = currentDoc.type === 'pdf'
-      ? (globalThis.ReveriePdf?.progressFromDom?.() ?? { page_index: 0 })
-      : bookProgressFromDom();
+    let location;
+    if (currentDoc.type === 'pdf') {
+      location = globalThis.ReveriePdf?.progressFromDom?.() ?? { page_index: 0 };
+    } else if (currentDoc.type === 'book') {
+      location = bookProgressFromDom();
+    } else {
+      // article: bookmark at the current reading offset (M2 reader-location)
+      const index = ReaderAnchor.textIndex(els.content);
+      const anchorY = window.scrollY + window.innerHeight * 0.3;
+      let offset = 0;
+      for (const e of index.entries) {
+        const el = e.node.parentElement;
+        if (!el || !el.getBoundingClientRect) continue;
+        const r = el.getBoundingClientRect();
+        if (r.top + window.scrollY + Math.min(r.height, window.innerHeight) >= anchorY) { offset = e.start; break; }
+      }
+      location = { offset, scroll_ratio: Number((window.scrollY / Math.max(1, document.body.scrollHeight - window.innerHeight)).toFixed(4)) };
+    }
     await reverie.bookAddBookmark(currentDoc.documentId, location);
     await refreshAnnotations();
   } catch (err) {

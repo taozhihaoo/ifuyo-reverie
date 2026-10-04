@@ -17,6 +17,7 @@ import { decodeBody } from '../capture/fetch.js';
 import { parseFeed, FeedParseError } from './feed-parser.js';
 import { addFeed as addFeedStored, loadFeeds, updateFeed, displayTitle } from './feed-store.js';
 import { loadSearchIndex, invalidateSearchIndex, refreshSearchIndex } from '../search/search-service.js';
+import { rebuildIndex } from '../library/index.js';
 import { sanitizeArticleHtml } from '../security/sanitize-html.js';
 import { htmlToMarkdown } from '../article/markdown.js';
 import { writeFileAtomic } from '../core/atomic-write.js';
@@ -293,6 +294,7 @@ export async function refreshFeed(libraryRoot, feedId, {
     });
     // persist the refreshed index view (invalidate alone would make the next
     // load rebuild from the STALE on-disk file)
+    await rebuildIndex(libraryRoot); // M12: library index must include new feed docs
     await refreshSearchIndex(libraryRoot);
     return {
       feed_id: feedId,
@@ -322,6 +324,7 @@ export async function refreshAllFeeds(libraryRoot, { signal = null } = {}) {
   await Promise.all(enabled.map((feed) => limit(async () => {
     results.push(await refreshFeed(libraryRoot, feed.feed_id, { signal }));
   })));
+  await rebuildIndex(libraryRoot).catch(() => {});
   await refreshSearchIndex(libraryRoot).catch(() => {});
   const summary = {
     total: results.length,
