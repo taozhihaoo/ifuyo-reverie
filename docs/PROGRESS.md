@@ -101,6 +101,15 @@ Doctor v2（11 项检查/findings 分级/可修复性/safe repair 预览+备份+
 文件系统优先——索引坏也能跑）、库可移植验证。真机：npm run smoke:doctor（10/10）。
 309/309 测试。
 
-## M11-M12
+## M11 — Windows Productization ✅
+
+产品化收束（Electron 栈适配）：Portable 打包基线（npm run package:portable → 自包含目录 +
+zip + SHA-256 checksums + release manifest，零网络依赖）、NSIS 安装器配置就绪（per-user、
+.epub/.pdf 关联、卸载保留用户库）、应用设置存储（库位置 UI 选择/更改 + 窗口状态持久化）、
+单实例 + 文件参数打开、有界日志 + 崩溃钩子、--safe-mode、构建元数据。
+打包产物真机验证：脱离源码树启动→库→Doctor→搜索→EPUB 导出→重启持久化（8/8）。
+309/309 测试无回归。卸载/升级永不触碰用户库（硬边界）。
+
+## M12
 
 未开始（顺序见总纲领：PDF → TTS → 导出增强 → 稳定性 → 产品化 → 自用 1.0）。

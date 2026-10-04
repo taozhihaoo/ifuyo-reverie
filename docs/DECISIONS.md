@@ -104,3 +104,15 @@
 | 标注 JSONL 修复 = 记录级（备份→保留好行→隔离坏行→刷新索引） | §80/§81：不整文件丢弃；serializeAnnotation 全对象序列化→未知字段天然保留（§27） |
 | 索引 schema 演进策略 = 重建而非迁移 | §108/§109：派生数据修复成本为零，复杂 DB 迁移无价值 |
 | 不引入 File Watcher | §44：增量刷新 + Doctor/重建入口已覆盖实际需求，不加重力级框架 |
+
+## M11
+
+| 决定 | 理由 |
+| --- | --- |
+| 打包基线 = Portable 目录组装（自研脚本，复用 STORE zip 思路 + zlib DEFLATE）；NSIS（electron-builder）配置就绪按需生成 | §13/§52：零网络可重复交付直接满足"交给另一个 Windows 用户"；当前网络间歇阻塞下 NSIS 工具链拉取不可靠（如实记录，配置不删） |
+| 打包形态 = **不打包 asar 的明文 resources/app 目录** | ESM worker（pdf.worker）+ asar 组合存在加载不确定性；明文目录规避风险，代码完整性由 zip checksum 保证（§49） |
+| 库位置选择：app-settings.json 持久化，env 永远优先 | §11/§59：库是用户自选目录（不再只能 env/默认值）；env 优先保证 M1–M10 测试与高级用法零破坏 |
+| 单实例 + second-instance 参数转发（Electron requestSingleInstanceLock） | §20：双击文件不产生第二进程；转发仅处理 .epub/.pdf 且走既有入库安全校验 |
+| 日志 = 主进程有界文件日志（分级/轮转 3 份/只记操作与错误码） | §33/§34：Release 可诊断但不记正文/凭据；崩溃钩子记日志+可见错误，不吞异常 |
+| 卸载语义：NSIS deleteAppDataOnDelete:false + 不注册库目录；Portable 无卸载器 | §26/§27 硬边界：卸载 ≠ 删除资料；删除用户数据永远不做进默认流程 |
+| 不做自动更新/开机启动/Store/MSIX | §4.1/§37/§72：自用阶段手动更新即可；这些是商业化范围 |

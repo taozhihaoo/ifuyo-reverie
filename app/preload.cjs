@@ -10,6 +10,17 @@ contextBridge.exposeInMainWorld('reverie', {
   doctorRepair: (dryRun) => ipcRenderer.invoke('doctor:repair', { dryRun }),
   doctorRepairFinding: (checkId, docDir, dryRun) => ipcRenderer.invoke('doctor:repair-finding', { checkId, docDir, dryRun }),
   writeReport: (destDir, fileName, content) => ipcRenderer.invoke('report:write', { destDir, fileName, content }),
+  settingsGet: () => ipcRenderer.invoke('settings:get'),
+  settingsSetLibrary: (libraryPath) => ipcRenderer.invoke('settings:set-library', { libraryPath }),
+  appRelaunch: () => ipcRenderer.invoke('app:relaunch'),
+  appInfo: () => ipcRenderer.invoke('app:info'),
+  appOpenLogs: () => ipcRenderer.invoke('app:open-logs'),
+  appOpenLibraryFolder: () => ipcRenderer.invoke('app:open-library-folder'),
+  onOpenDocument: (cb) => {
+    const h = (_e, payload) => cb(payload);
+    ipcRenderer.on('app:open-document', h);
+    return () => ipcRenderer.removeListener('app:open-document', h);
+  },
   pickEpub: () => ipcRenderer.invoke('dialog:pick-epub'),
   bookAdd: (sourcePath) => ipcRenderer.invoke('book:add', { sourcePath }),
   pickPdf: () => ipcRenderer.invoke('dialog:pick-pdf'),

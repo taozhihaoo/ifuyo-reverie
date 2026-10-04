@@ -18,6 +18,8 @@
     "spike:pdf:render": "node spikes/pdf/render-node.mjs",
     "app": "electron .",
     "doctor": "node scripts/doctor.mjs",
+    "build:info": "node scripts/write-build-info.mjs",
+    "package:portable": "node scripts/write-build-info.mjs && node scripts/package-release.mjs",
     "smoke:pdf": "node scripts/smoke-pdf.mjs",
     "smoke:tts": "node scripts/smoke-tts.mjs",
     "smoke:epub": "node scripts/smoke-epub.mjs",

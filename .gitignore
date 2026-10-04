@@ -25,3 +25,5 @@ tmp/
 # Native messaging spike output (host writes capture jobs here at runtime)
 native-host/data/
 tests/fixtures/pdf/render-out.png
+build-info.json
+artifacts/

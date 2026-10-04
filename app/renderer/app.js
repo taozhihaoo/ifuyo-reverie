@@ -1106,6 +1106,54 @@ document.getElementById('btn-back').addEventListener('click', () => {
   globalThis.ReveriePdf?.dispose?.();
   showLibrary();
 });
+// ============================================================ M11: library location + app info
+const llPath = document.getElementById('ll-path');
+
+async function refreshLibraryLocation() {
+  try {
+    const settings = await reverie.settingsGet();
+    llPath.textContent = settings.effectiveLibraryRoot;
+    llPath.title = settings.effectiveLibraryRoot
+      + (settings.libraryPathEnv ? '\n（由 REVERIE_LIBRARY 环境变量指定）' : '');
+  } catch { /* settings unavailable — leave blank */ }
+}
+
+document.getElementById('btn-library-change').addEventListener('click', async () => {
+  const dest = await reverie.pickExportDir(); // directory picker (create allowed)
+  if (!dest) return;
+  const settings = await reverie.settingsGet();
+  if (path0(dest) === path0(settings.effectiveLibraryRoot)) return;
+  if (!confirm(`将库位置设置为：\n${dest}\n\n保存后需要重启 Reverie 生效。\n（原库目录与其中的资料不会被移动或修改）`)) return;
+  try {
+    await reverie.settingsSetLibrary(dest);
+    if (confirm('库位置已保存。立即重启 Reverie 以使用新库？')) await reverie.appRelaunch();
+    else await refreshLibraryLocation();
+  } catch (err) {
+    alert('保存失败：' + String(err.message ?? err).slice(0, 120));
+  }
+  function path0(p) { return String(p).replace(/[\\/]+$/, '').toLowerCase(); }
+});
+
+document.getElementById('btn-library-open').addEventListener('click', () => reverie.appOpenLibraryFolder());
+document.getElementById('btn-logs-open').addEventListener('click', () => reverie.appOpenLogs());
+refreshLibraryLocation();
+refreshAppInfoLine();
+
+// M11: files opened via association/args (single-instance forwarding)
+reverie.onOpenDocument?.((payload) => {
+  if (!payload?.documentId) return;
+  openArticle(payload.documentId);
+});
+
+async function refreshAppInfoLine() {
+  try {
+    const info = await reverie.appInfo();
+    const line = `Reverie ${info.version}${info.buildId ? ` · build ${info.buildId}` : ''} · ${info.platform}`;
+    const el = document.getElementById('doctor-summary');
+    if (el && el.textContent.length === 0) el.textContent = line;
+  } catch { /* optional */ }
+}
+
 document.getElementById('btn-export-view-epub').addEventListener('click', () => { exportCurrentViewAsEpub(); });
 
 // ============================================================ doctor (M10)

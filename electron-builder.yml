@@ -1,0 +1,51 @@
+# electron-builder 配置（M11）：NSIS per-user 安装器。网络允许时运行
+# `npx electron-builder --win` 生成 Setup.exe；离线基线为
+# `npm run package:portable`（scripts/package-release.mjs）。
+#
+# 硬约束：卸载/安装/升级 NEVER 触碰用户库（REVERIE_HOME 与用户选择的
+# Library 目录一律保留）——deleteAppDataOnDelete: false + 不注册库目录。
+appId: com.ifuyo.reverie
+productName: Reverie
+copyright: ifuyo Reverie — local-first personal reading archive
+directories:
+  output: artifacts
+  buildResources: build
+files:
+  - app/**
+  - src/**
+  - package.json
+  - "!**/*.test.js"
+  - "!tests/**"
+  - "!spikes/**"
+  - "!scripts/**"
+  - "!docs/**"
+  - "!Spec/**"
+  - "!artifacts/**"
+extraResources:
+  - from: node_modules/pdfjs-dist
+    to: app/node_modules/pdfjs-dist
+asarUnpack:
+  - app/vendor/**
+win:
+  target:
+    - nsis
+    - zip
+  artifactName: Reverie-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  deleteAppDataOnDelete: false   # 卸载不删 REVERIE_HOME（M11 §26/§27）
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Reverie
+fileAssociations:
+  - ext: epub
+    name: EPUB 电子书
+    role: Editor
+  - ext: pdf
+    name: PDF 文档
+    role: Viewer
+# signing（§45/§46）：无证书时保持 unsigned；证书通过环境变量
+# CSC_LINK/CSC_KEY_PASSWORD 注入，绝不进仓库。详见 SIGNING.md。

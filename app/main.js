@@ -4,7 +4,7 @@
  * Pipeline, Annotation Core) so the architecture boundary App -> Core stays
  * honest and testable without Electron.
  */
-import { app, BrowserWindow, ipcMain, shell, Menu, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Menu, dialog, screen } from 'electron';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { promises as fsp } from 'node:fs';
@@ -26,8 +26,27 @@ import { exportArticleToEpub } from '../src/importexport/export/epub-exporter.js
 import { buildReviewQueue, markReviewed } from '../src/review/daily-review.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+// ---- M11 bootstrap: settings → library root (env keeps highest precedence)
+import { loadAppSettings, saveAppSettings, appSettingsPath } from '../src/core/app-settings.js';
+import { appLog, logsDir } from '../src/core/app-log.js';
+import { buildInfo } from '../src/core/build-info.js';
+const appSettings = await loadAppSettings();
+if (!process.env.REVERIE_LIBRARY && appSettings.libraryPath) {
+  process.env.REVERIE_LIBRARY = appSettings.libraryPath; // user-selected library (M11 §11)
+}
 const libraryRoot = getLibraryRoot();
 const queueDir = getQueueDir();
+const isSafeMode = process.argv.includes('--safe-mode');
+appLog.info(`reverie starting v${app.getVersion()} library=${libraryRoot} safeMode=${isSafeMode}`);
+
+// M11 §35: crash handling — log + visible error, never a silent swallow
+process.on('uncaughtException', (err) => {
+  appLog.error(`uncaughtException: ${err?.name}: ${err?.message}`);
+});
+process.on('unhandledRejection', (reason) => {
+  appLog.error(`unhandledRejection: ${String(reason?.message ?? reason).slice(0, 500)}`);
+});
 
 let processing = false;
 async function runQueueIfIdle() {
@@ -290,6 +309,32 @@ function registerIpc() {
     const p = path.join(destDir, safe.endsWith('.md') ? safe : safe + '.md');
     await fsp.writeFile(p, content, 'utf8');
     return p;
+  });
+  // ---- M11: application settings / windows integration
+  ipcMain.handle('settings:get', async () => {
+    const settings = await loadAppSettings();
+    return { ...settings, effectiveLibraryRoot: libraryRoot, libraryPathEnv: Boolean(process.env.REVERIE_LIBRARY) };
+  });
+  ipcMain.handle('settings:set-library', async (_e, { libraryPath }) => {
+    if (typeof libraryPath !== 'string' || libraryPath.trim() === '') throw new Error('库路径不能为空');
+    const resolved = path.resolve(libraryPath.trim());
+    if (path.isAbsolute(resolved) === false) throw new Error('库路径必须是绝对路径');
+    await fsp.mkdir(resolved, { recursive: true }); // create if new (M11 §11 Create Library)
+    await saveAppSettings({ libraryPath: resolved });
+    appLog.info(`library path set: ${resolved} (effective after relaunch)`);
+    return { saved: true, libraryPath: resolved, restartRequired: true };
+  });
+  ipcMain.handle('app:relaunch', async () => {
+    app.relaunch();
+    app.exit(0);
+  });
+  ipcMain.handle('app:info', async () => ({ version: app.getVersion(), ...buildInfo(), logsDir: logsDir() }));
+  ipcMain.handle('app:open-logs', async () => {
+    await fsp.mkdir(logsDir(), { recursive: true });
+    shell.openPath(logsDir());
+  });
+  ipcMain.handle('app:open-library-folder', async () => {
+    shell.openPath(libraryRoot);
   });
   ipcMain.handle('dialog:pick-export-dir', async () => {
     const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
@@ -572,10 +617,30 @@ function registerIpc() {
   });
 }
 
+let mainWindow = null;
+const windowBounds = appSettings.window ?? null; // M11 §30: persisted window state
+
 function createWindow() {
+  const bounds = { width: 1180, height: 800 };
+  if (windowBounds
+    && Number.isInteger(windowBounds.width) && windowBounds.width >= 500
+    && Number.isInteger(windowBounds.height) && windowBounds.height >= 400) {
+    bounds.width = windowBounds.width;
+    bounds.height = windowBounds.height;
+    // only restore position when it lands on a visible display (M11 §30)
+    const visible = screen.getAllDisplays().some((d) => {
+      const a = d.workArea;
+      const x = windowBounds.x ?? 0;
+      const y = windowBounds.y ?? 0;
+      return x >= a.x - 50 && x < a.x + a.width && y >= a.y - 50 && y < a.y + a.height;
+    });
+    if (visible && Number.isInteger(windowBounds.x) && Number.isInteger(windowBounds.y)) {
+      bounds.x = windowBounds.x;
+      bounds.y = windowBounds.y;
+    }
+  }
   const win = new BrowserWindow({
-    width: 1180,
-    height: 800,
+    ...bounds,
     title: 'Reverie',
     backgroundColor: '#faf9f7',
     webPreferences: {
@@ -586,6 +651,16 @@ function createWindow() {
       spellcheck: false,
     },
   });
+  if (windowBounds?.maximized) win.maximize();
+  mainWindow = win;
+  const saveBounds = () => {
+    if (win.isDestroyed() || win.isMinimized()) return;
+    const b = win.getNormalBounds();
+    saveAppSettings({ window: { ...b, maximized: win.isMaximized() } }).catch(() => {});
+  };
+  win.on('close', saveBounds);
+  win.on('maximize', saveBounds);
+  win.on('unmaximize', saveBounds);
   // Reader content must never navigate the window; external links go to the system browser
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
@@ -596,6 +671,50 @@ function createWindow() {
   void win.loadFile(path.join(here, 'renderer', 'index.html'));
 }
 
+// ---- M11: single instance (§20) — a second launch forwards its args here
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_e, argv) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+    void openFilesFromArgs(argv);
+  });
+}
+
+/** M11 §19: supported file arguments — .epub/.pdf are ingested into the
+ * library and opened; anything else is reported, never silently ignored. */
+async function openFilesFromArgs(argv) {
+  for (const arg of argv.slice(1)) {
+    if (arg.startsWith('--')) continue;
+    const ext = path.extname(arg).toLowerCase();
+    if (ext !== '.epub' && ext !== '.pdf') continue;
+    try {
+      await fsp.access(arg);
+      const importer = ext === '.epub'
+        ? (await import('../src/reader/book-library.js')).addEpubBook
+        : (await import('../src/reader/pdf-library.js')).addPdfBook;
+      const result = await importer(libraryRoot, path.resolve(arg));
+      invalidateSearchIndex();
+      await rebuildIndex(libraryRoot).catch(() => {});
+      await refreshSearchIndex(libraryRoot).catch(() => {});
+      broadcast('library:changed');
+      mainWindow?.webContents.send('app:open-document', { documentId: result.document_id, title: result.meta.title });
+      appLog.info(`opened file from args: ext=${ext} document=${result.document_id}`);
+    } catch (err) {
+      dialog.showMessageBox({
+        type: 'warning',
+        message: `无法打开文件：${path.basename(arg)}`,
+        detail: `Reverie 未修改该文件。原因：${err.message}`,
+      });
+      appLog.error(`open-file failed: ${err.message}`);
+    }
+  }
+}
+
 app.whenReady().then(async () => {
   await fsp.mkdir(libraryRoot, { recursive: true });
   await fsp.mkdir(queueDir, { recursive: true });
@@ -604,6 +723,7 @@ app.whenReady().then(async () => {
   await runQueueIfIdle();
   await loadSearchIndex(libraryRoot).catch(() => {});
   await refreshSearchIndex(libraryRoot).catch((e) => console.error('[reverie] search refresh:', e.message)); // process what accumulated while the app was closed (M1 §5.1)
+  void openFilesFromArgs(process.argv);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
