@@ -63,6 +63,17 @@ EPUB 2/3 解析（自研 over jsdom，DOCTYPE/XXE 防线）、TOC 双通道（na
 限制：滚动式而非 foliate-js 分页视图、text-quote 而非 CFI（漂移已记录）、
 键盘导航/阅读设置/FL/Overlays 未做。
 
-## M7-M12
+## M7 — PDF Reader ✅
+
+PDF 一等 Document：pdfjs-dist 6.4（零新运行时依赖）、入库 pdf/<id>/document.pdf 字节不可变、
+懒渲染+LRU 位图缓存、pdf.js TextLayer 文本层（DOM 与主进程 canonical 字节一致——与
+M2/M3/M6 全链路复用）、Outline/页导航/缩放、全局+书内搜索（CJK 实测）、书签/进度
+（page_index 定位）、密码/损坏/超限 typed 错误、单页失败隔离。
+真实运行验证：npm run smoke:pdf（CDP 驱动真实 Electron，11/11——含高亮重启重绘、
+进度恢复、实时 parity）。263/263 测试。
+限制：链接层未渲染（外链默认不触发，安全默认）、无旋转 UI、无缩略图栏、
+扫描件无文本层时正文能力明确降级（OCR 永久排除）。详见 docs/M7-STATUS.md 能力表。
+
+## M8-M12
 
 未开始（顺序见总纲领：PDF → TTS → 导出增强 → 稳定性 → 产品化 → 自用 1.0）。

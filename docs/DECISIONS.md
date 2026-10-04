@@ -51,3 +51,16 @@
 | 刷新仅用户触发（Refresh / Refresh All），无后台 Scheduler | M4 §51/98/127：默认不偷偷联网 |
 | 更新策略：同身份内容变化 → 原子重写 article.md，用户状态/标注不碰 | 内容更新与用户资料分离（M4 §40/44）；标注重定位交给 M2 Resolver |
 | 删除订阅保留文章 | Feed 是订阅，Article 是用户档案（M4 §49） |
+
+## M7
+
+| 决定 | 理由 |
+| --- | --- |
+| PDF 渲染/提取 = pdfjs-dist 6.4（Apache-2.0，M0 spike 已验证） | 零 native 依赖、Node legacy build 与 Chromium 渲染层同一实现——canonical 契约可双侧锁定；纯 JS 无部署项（M7 §6） |
+| **canonical 契约**：页文本 = `Σ item.str` 无分隔拼接，与 pdf.js TextLayer DOM 字节一致（span.textContent=item.str，EOL=`<br>` 无文本） | 与 M6 §33 同构——M2 锚定/M3 搜索/进度零新体系；源码级确认 + 真实 TextLayer 集成测试 + 真机 parity 三重锁定 |
+| 渲染 = 懒渲染位图（LRU≤6、可取消）+ 文本层建后保留 | 位图是可弃运行时缓存（§12/13）；文本层是 canonical 的 DOM 形态，是锚定/搜索的前提，不是缓存 |
+| 定位 = page_index（内部身份）+ PageLabel 仅显示；进度/书签 `{page_index, scroll_ratio}` | §30：显示页码非稳定身份；复用 user-state last_location（扩展 page_index 分支） |
+| 第三方隔离 = 主进程 pdf-reader-core / 渲染层 pdf-view 各为唯一 pdfjs 入口 | UI/Core 数据模型全 plain JSON；换渲染器只需重写两个 adapter 文件（M7 §7/8） |
+| CSP 不放宽：cmaps/fonts/wasm 经 `pdf:vendor-data` IPC（目录+扩展名白名单）供给 | 沙箱渲染层无法 fetch file://；connect-src 'none' 是 M0 安全基线，不为便利让步 |
+| 密码 PDF = 检测 + PASSWORD_REQUIRED 明确提示；不做密码输入 | §17 允许；个人归档场景受保护 PDF 显式 Unsupported，绝不绕过 |
+| OCR/编辑/链接层/表单/多媒体 = 明确 Unsupported | §60-62：Reader 不是 Editor；不渲染链接层 = 外链/JS/Launch 自然不触发（安全默认） |

@@ -132,6 +132,8 @@ Reverie Library/
 | `source_type` | ❌ | 来源类型：`web`（隐含，缺省）\| `feed`；feed 文章另见下 |
 | `feed_id` / `feed_title` / `external_id` / `external_id_type` / `content_provenance` | ❌ | feed 来源文章的订阅关系与身份字段：feed_id=订阅源 id；external_id=RSS guid/Atom id（external_id_type: guid-permalink/guid/atom-id）；content_provenance=feed-content/feed-summary。**feed_id 是来源关系，不是 document_id 的替代** |
 | `categories` | ❌ | Feed 分类（字符串数组） |
+| `page_count` | ❌ | PDF 页数（type=pdf，M7；入库时由解析器写入，可重建） |
+| `pdf_meta` | ❌ | PDF 信息字典投影（type=pdf，M7）：title/author/subject/keywords/creator/producer/creation_date/modification_date，缺失即省略；阅读时由解析器实时提供，不作为真相 |
 | `created_at` | ✅ | 目录创建时间 |
 | `captured_at` | ❌ | 网页捕获时间（web 来源） |
 | `updated_at` | ✅ | 元数据最后一次修改时间 |
