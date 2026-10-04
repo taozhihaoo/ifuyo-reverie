@@ -23,6 +23,11 @@ M0 不做产品功能，只回答一个问题：
 
 | 文档 | 内容 |
 | --- | --- |
+| [docs/M5-STATUS.md](docs/M5-STATUS.md) | M5 完成报告（导入导出与每日回顾） |
+| [docs/IMPORT.md](docs/IMPORT.md) | 导入：来源/格式/去重/幂等/Provenance |
+| [docs/EXPORT.md](docs/EXPORT.md) | 导出：Markdown/EPUB/Metadata/Highlights |
+| [docs/MIGRATION.md](docs/MIGRATION.md) | 数据流与保留/丢失透明说明 |
+| [docs/DAILY-REVIEW.md](docs/DAILY-REVIEW.md) | 每日回顾：队列/策略/状态 |
 | [docs/M4-STATUS.md](docs/M4-STATUS.md) | M4 完成报告（RSS / Feed 订阅） |
 | [docs/RSS.md](docs/RSS.md) | RSS 内容规则：格式/归一化/去重/安全 |
 | [docs/FEEDS.md](docs/FEEDS.md) | 订阅管理：模型/持久化/操作规则 |

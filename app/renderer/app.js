@@ -206,6 +206,71 @@ async function refreshFeedById(feedId) {
   showLibrary();
 }
 
+// ============================================================ daily review (M5 §42-50)
+let reviewSession = null;
+let reviewIndex = 0;
+
+function showReviewItem() {
+  const view = document.getElementById('review-view');
+  view.hidden = false;
+  els.library.hidden = true;
+  const box = document.getElementById('review-body');
+  box.textContent = '';
+  if (!reviewSession || reviewIndex >= reviewSession.length) {
+    document.getElementById('review-empty').hidden = false;
+    document.getElementById('review-empty').textContent = '本次回顾完成 ✅';
+    document.getElementById('review-nav').hidden = true;
+    document.getElementById('review-open').hidden = true;
+    return;
+  }
+  document.getElementById('review-empty').hidden = true;
+  document.getElementById('review-nav').hidden = false;
+  const item = reviewSession[reviewIndex];
+  const kind = { highlight: '高亮', note: '笔记', article: '文章' }[item.kind] ?? item.kind;
+  document.getElementById('review-kind').textContent = kind + (item.annotation_status === 'orphaned' ? '（无法定位）' : '');
+  const titleEl = document.getElementById('review-doc-title');
+  titleEl.textContent = item.document_title ?? '(untitled)';
+  titleEl.onclick = () => item.document_id && openArticle(item.document_id);
+  box.textContent = '';
+  if (item.context?.quoted_text) {
+    const q = document.createElement('blockquote');
+    q.textContent = item.context.quoted_text;
+    box.appendChild(q);
+  }
+  if (item.context?.note) {
+    const n = document.createElement('p');
+    n.textContent = '📝 ' + item.context.note;
+    box.appendChild(n);
+  }
+  const openBtn = document.getElementById('review-open');
+  openBtn.hidden = !item.document_id;
+  openBtn.onclick = () => item.document_id && openArticle(item.document_id);
+  document.getElementById('review-pos').textContent = (reviewIndex + 1) + ' / ' + reviewSession.length;
+}
+
+async function startDailyReview() {
+  const { queue } = await reverie.reviewQueue('mixed', 10);
+  reviewSession = queue;
+  reviewIndex = 0;
+  els.library.hidden = true;
+  els.reader.hidden = true;
+  searchResults.hidden = true;
+  const view = document.getElementById('review-view');
+  view.hidden = false;
+  showReviewItem();
+}
+
+function nextReviewItem() {
+  if (!reviewSession) return;
+  reverie.reviewMark(reviewSession.slice(reviewIndex, reviewIndex + 1).map((q) => ({ id: q.id })));
+  reviewIndex++;
+  showReviewItem();
+}
+
+function prevReviewItem() {
+  if (reviewIndex > 0) { reviewIndex--; showReviewItem(); }
+}
+
 async function showLibrary() {
   els.reader.hidden = true;
   els.library.hidden = false;
@@ -658,6 +723,7 @@ document.addEventListener('keydown', (ev) => {
 
 for (const b of document.querySelectorAll('[data-view]')) {
   b.addEventListener('click', () => {
+    if (b.dataset.view === 'daily-review') { startDailyReview(); return; }
     currentView = b.dataset.view;
     activeFeedId = null;
     document.querySelectorAll('[data-view]').forEach((x) => x.classList.toggle('active', x === b));
@@ -672,6 +738,23 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
   setTimeout(() => { els.queueHint.textContent = ''; }, 2500);
 });
 document.getElementById('btn-annotations').addEventListener('click', () => { panel.hidden = !panel.hidden; });
+document.getElementById('btn-export-md').addEventListener('click', async () => {
+  if (!currentDoc) return;
+  const dest = await reverie.pickExportDir();
+  if (!dest) return;
+  const r = await reverie.exportDocuments([currentDoc.documentId], 'markdown', dest);
+  alert(r.failed_count === 0 ? 'Markdown 导出完成' : '导出失败 ' + r.failed_count + ' 篇');
+});
+document.getElementById('btn-export-epub').addEventListener('click', async () => {
+  if (!currentDoc) return;
+  const dest = await reverie.pickExportDir();
+  if (!dest) return;
+  const r = await reverie.exportDocuments([currentDoc.documentId], 'epub', dest);
+  alert(r.failed_count === 0 ? 'EPUB 导出完成' : '导出失败 ' + r.failed_count + ' 篇');
+});
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && !els.reader.hidden) { els.reader.hidden = true; els.library.hidden = false; showLibrary(); }
+});
 
 reverie.onLibraryChanged(() => { if (!els.library.hidden) showLibrary(); });
 reverie.onQueueChanged(() => { if (!els.library.hidden) showLibrary(); });

@@ -4,7 +4,7 @@
  * Pipeline, Annotation Core) so the architecture boundary App -> Core stays
  * honest and testable without Electron.
  */
-import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Menu, dialog } from 'electron';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { promises as fsp } from 'node:fs';
@@ -19,6 +19,11 @@ import { loadUserState, updateUserState, forgetDocument, userStatePath } from '.
 import { loadSearchIndex, refreshSearchIndex, invalidateSearchIndex, search, queryLibrary, tagFacets, viewCounts } from '../src/search/search-service.js';
 import { runDoctor } from '../src/library/doctor.js';
 import { addFeedUrl, refreshFeed, refreshAllFeeds, deleteFeedOnly, listFeedsWithCounts, updateFeedMeta } from '../src/feed/feed-service.js';
+import { previewImport, commitImport } from '../src/importexport/import-service.js';
+import { exportDocumentToMarkdown, validateMarkdownExport } from '../src/importexport/export/markdown-exporter.js';
+import { exportMetadataCsv, exportMetadataJson, exportHighlightsJson, exportHighlightsMarkdown } from '../src/importexport/export/metadata-exporter.js';
+import { exportArticleToEpub } from '../src/importexport/export/epub-exporter.js';
+import { buildReviewQueue, markReviewed } from '../src/review/daily-review.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const libraryRoot = getLibraryRoot();
@@ -183,6 +188,173 @@ function registerIpc() {
   });
 
   ipcMain.handle('doctor:run', async () => runDoctor(libraryRoot));
+  ipcMain.handle('dialog:pick-export-dir', async () => {
+    const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
+    return r.canceled ? null : r.filePaths[0];
+  });
+  ipcMain.handle('export:documents', async (_e, { documentIds, format = 'markdown', destDir }) => {
+    if (!Array.isArray(documentIds) || documentIds.length === 0) return { exported_count: 0, failed_count: 0, failed: [] };
+    await fsp.mkdir(destDir, { recursive: true });
+    const exported = [];
+    const failed = [];
+    for (const documentId of documentIds) {
+      try {
+        const index = await loadIndex(libraryRoot);
+        const entry = index.entries.find((e) => e.document_id === documentId);
+        if (!entry) throw new Error('unknown document: ' + documentId);
+        const dir = path.join(libraryRoot, entry.path);
+        const meta = await verifyArticleDir(dir);
+        const markdown = await fsp.readFile(path.join(dir, 'article.md'), 'utf8');
+        const { readAnnotationsFile } = await import('../src/annotation/store.js');
+        const { annotations } = await readAnnotationsFile(path.join(dir, 'annotations.jsonl'));
+        const safe = (meta.title || meta.document_id).replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+        if (format === 'markdown') {
+          const md = exportDocumentToMarkdown(meta, markdown, annotations);
+          await fsp.writeFile(path.join(destDir, safe + '.md'), md);
+        } else if (format === 'epub') {
+          const buf = exportArticleToEpub({
+            title: meta.title, author: meta.author ?? null, markdown,
+            publishedAt: meta.published_at ?? null,
+            sourceUrl: meta.source?.canonical_url ?? meta.source?.original_url ?? null,
+            documentId: meta.document_id,
+          });
+          await fsp.writeFile(path.join(destDir, safe + '.epub'), buf);
+        } else {
+          throw new Error('unsupported format: ' + format);
+        }
+        exported.push({ document_id: documentId, title: meta.title });
+      } catch (err) {
+        failed.push({ document_id: documentId, error: err.message });
+      }
+    }
+    return { exported_count: exported.length, failed_count: failed.length, failed, dest: destDir };
+  });
+  ipcMain.handle('export:metadata', async (_e, { format = 'csv' }) => {
+    const index = await loadIndex(libraryRoot);
+    const readState = await loadReadState();
+    const stateAdapter = (id) => {
+      const st = readState.states[id];
+      return { read: st?.read ?? false, favorite: st?.favorite ?? false, inbox: st?.inbox ?? false, tags: st?.tags ?? [] };
+    };
+    if (format === 'json') return exportMetadataJson(index.entries, stateAdapter);
+    return exportMetadataCsv(index.entries, stateAdapter);
+  });
+  ipcMain.handle('export:highlights', async (_e, { format = 'markdown' }) => {
+    const index = await loadIndex(libraryRoot);
+    const { readAnnotationsFile } = await import('../src/annotation/store.js');
+    const items = [];
+    for (const entry of index.entries) {
+      try {
+        const dir = path.join(libraryRoot, entry.path);
+        const { annotations } = await readAnnotationsFile(path.join(dir, 'annotations.jsonl'));
+        for (const a of annotations) {
+          items.push({ annotation: a, document: { document_id: entry.document_id, title: entry.title, url: entry.canonical_url ?? entry.original_url ?? null } });
+        }
+      } catch { /* skip broken files */ }
+    }
+    if (format === 'json') return exportHighlightsJson(items);
+    return exportHighlightsMarkdown(items);
+  });
+  ipcMain.handle('review:queue', async (_e, { strategy, limit }) => {
+    return buildReviewQueue(libraryRoot, { strategy, limit });
+  });
+  ipcMain.handle('review:mark', async (_e, { items }) => {
+    await markReviewed(items ?? []);
+    return { ok: true };
+  });
+
+  // ---- M5: import / export / daily review ----
+  ipcMain.handle('import:preview', async (_e, { filePath, format }) => {
+    return previewImport(libraryRoot, filePath, { format });
+  });
+  ipcMain.handle('import:commit', async (_e, { filePath, format }) => {
+    const report = await commitImport(libraryRoot, filePath, { format });
+    invalidateSearchIndex();
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    await rebuildIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return report;
+  });
+  ipcMain.handle('export:documents', async (_e, { documentIds, format = 'markdown', destDir }) => {
+    await fsp.mkdir(destDir, { recursive: true });
+    const exported = [];
+    const failed = [];
+    for (const documentId of documentIds) {
+      try {
+        const index = await loadIndex(libraryRoot);
+        const entry = index.entries.find((e) => e.document_id === documentId);
+        if (!entry) throw new Error(`unknown document: ${documentId}`);
+        const dir = path.join(libraryRoot, entry.path);
+        const meta = await verifyArticleDir(dir);
+        const markdown = await fsp.readFile(path.join(dir, 'article.md'), 'utf8');
+        const { readAnnotationsFile } = await import('../src/annotation/store.js');
+        const { annotations } = await readAnnotationsFile(path.join(dir, 'annotations.jsonl'));
+        const safe = (meta.title || meta.document_id).replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+        if (format === 'markdown') {
+          const md = exportDocumentToMarkdown(meta, markdown, annotations);
+          await fsp.writeFile(path.join(destDir, `${safe}.md`), md);
+        } else if (format === 'epub') {
+          const buf = exportArticleToEpub({
+            title: meta.title, author: meta.author ?? null, markdown,
+            publishedAt: meta.published_at ?? null,
+            sourceUrl: meta.source?.canonical_url ?? meta.source?.original_url ?? null,
+            documentId: meta.document_id,
+          });
+          await fsp.writeFile(path.join(destDir, `${safe}.epub`), buf);
+        } else {
+          throw new Error(`unsupported export format: ${format}`);
+        }
+        exported.push({ document_id: documentId, title: meta.title });
+      } catch (err) {
+        failed.push({ document_id: documentId, error: err.message });
+      }
+    }
+    return { exported_count: exported.length, failed_count: failed.length, failed, dest: destDir };
+  });
+  ipcMain.handle('export:metadata', async (_e, { format = 'csv' }) => {
+    const index = await loadIndex(libraryRoot);
+    const readState = await loadReadState();
+    const stateAdapter = (id) => {
+      const st = readState.states[id];
+      return {
+        read: st?.read ?? false,
+        favorite: st?.favorite ?? false,
+        inbox: st?.inbox ?? false,
+        tags: st?.tags ?? [],
+      };
+    };
+    if (format === 'json') return exportMetadataJson(index.entries, stateAdapter);
+    return exportMetadataCsv(index.entries, stateAdapter);
+  });
+  ipcMain.handle('export:highlights', async (_e, { format = 'markdown' }) => {
+    const index = await loadIndex(libraryRoot);
+    const { readAnnotationsFile } = await import('../src/annotation/store.js');
+    const items = [];
+    for (const entry of index.entries) {
+      try {
+        const dir = path.join(libraryRoot, entry.path);
+        const { annotations } = await readAnnotationsFile(path.join(dir, 'annotations.jsonl'));
+        for (const a of annotations) {
+          items.push({ annotation: a, document: { document_id: entry.document_id, title: entry.title, url: entry.canonical_url ?? entry.original_url ?? null } });
+        }
+      } catch { /* skip broken annotation files — diagnostics via doctor */ }
+    }
+    if (format === 'json') return exportHighlightsJson(items);
+    return exportHighlightsMarkdown(items);
+  });
+  ipcMain.handle('review:queue', async (_e, { strategy, limit, date }) => {
+    return buildReviewQueue(libraryRoot, { strategy, limit, date });
+  });
+  ipcMain.handle('review:mark', async (_e, { items }) => {
+    await markReviewed(items ?? []);
+    return { ok: true };
+  });
+  ipcMain.handle('review:article-context', async (_e, { documentId }) => {
+    const index = await loadIndex(libraryRoot);
+    const entry = index.entries.find((e) => e.document_id === documentId);
+    if (!entry) return { exists: false };
+    return { exists: true, title: entry.title, path: entry.path };
+  });
 
   // ---- M4: feeds ----
   ipcMain.handle('feeds:list', async () => listFeedsWithCounts(libraryRoot));

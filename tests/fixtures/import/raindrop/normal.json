@@ -1,0 +1,1 @@
+{"items":[{"_id":"rd1","title":"Raindrop 书签一","link":"https://rd.example/1","excerpt":"<b>书签摘要</b>","note":"我的备注","tags":["dev"],"collection":{"title":"开发"},"important":true,"created":"2026-10-04T12:00:00.000Z","lastUpdate":"2026-10-05T12:00:00.000Z"},{"_id":"rd2","title":"Raindrop 书签二","link":"https://rd.example/2","tags":[],"important":false}]}
