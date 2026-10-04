@@ -119,12 +119,30 @@ export function createAnnotationService({ articleDir, documentId, getReaderConte
       return { annotation: updated, resolution: check };
     },
 
+    /** Create a bookmark at a reader location (M6 §38): no text anchor —
+     * locator describes the position; status stays resolved. */
+    async createBookmark({ location, note = '' }) {
+      if (!location || typeof location !== 'object') throw new Error('bookmark location is required');
+      const annotation = createAnnotation({
+        documentId,
+        type: 'bookmark',
+        locator: { kind: 'reader-location', location },
+        note,
+      });
+      await appendAnnotation(filePath, annotation);
+      return { annotation };
+    },
+
     /** Load all annotations with fresh resolution results (M2 §19). */
     async listResolved() {
       const { canonicalText, contentHash } = await context();
       const { annotations, invalid, duplicates } = await readAnnotationsFile(filePath, { documentId });
       let changed = false;
       const resolved = annotations.map((a) => {
+        // bookmarks carry a reader location, not a text anchor (M6 §38)
+        if (a.type === 'bookmark') {
+          return { ...a, resolution: { status: 'resolved', quality: 'location' } };
+        }
         const result = resolveAnnotation(a, canonicalText, { currentHash: contentHash });
         const nextStatus = result.status === 'resolved' ? 'resolved' : 'orphaned';
         if (a.status !== nextStatus || (result.status === 'resolved' && (result.start !== a.locator?.position?.start || result.end !== a.locator?.position?.end))) {

@@ -598,7 +598,9 @@ function renderPanel(annotations) {
     li.className = `ann ${a.status}`;
     const quote = document.createElement('p');
     quote.className = 'ann-quote';
-    quote.textContent = a.quoted_text ?? '(无锚点笔记)';
+    quote.textContent = a.type === 'bookmark'
+      ? `🔖 书签 · 第 ${(a.locator?.location?.chapter_index ?? 0) + 1} 章`
+      : (a.quoted_text ?? '(无锚点笔记)');
     li.appendChild(quote);
     if (a.status === 'orphaned') {
       const warn = document.createElement('p');
@@ -625,7 +627,12 @@ function renderPanel(annotations) {
     }
     // (build actions explicitly — the array-of-arrays above is unreadable)
     actions.textContent = '';
-    const buttons = a.status === 'orphaned'
+    const buttons = a.type === 'bookmark'
+      ? [
+          ['跳转', () => gotoBookLocation(a.locator?.location ?? {})],
+          ['删除', () => removeAnnotation(a.annotation_id)],
+        ]
+      : a.status === 'orphaned'
       ? [
           ['修复', () => { repairTarget = a.annotation_id; hidePanel(); alert('请在正文中选中该标注的新位置文本，然后在弹出菜单中选择“修复此标注”。'); }],
           ['删除', () => removeAnnotation(a.annotation_id)],
@@ -688,15 +695,19 @@ async function openArticle(documentId) {
   if (loaded.type === "book") {
     renderBookChapters(loaded);
     buildBookToc(loaded);
+    setupBookProgress(documentId);
   } else {
     const ctx = { resolveImage: async (rel) => await reverie.articleResolvePath(documentId, rel) };
     els.content.appendChild(renderBlocks(loaded.blocks, ctx));
   }
+  document.getElementById('btn-bookmark').hidden = loaded.type !== 'book';
   renderPanel(loaded.annotations);
   requestAnimationFrame(() => applyHighlights(loaded.annotations));
 
   const entry = (await reverie.libraryList()).entries.find((e) => e.document_id === documentId);
   if (entry?.read_state !== "read") await reverie.articleReadState(documentId, "read");
+  // M6 §26: restore last reading position after layout settles
+  requestAnimationFrame(() => restoreBookProgress(loaded));
   window.scrollTo(0, 0);
 }
 
@@ -707,10 +718,6 @@ function renderBookChapters(loaded) {
     section.className = "book-chapter";
     section.dataset.chapterIndex = String(ch.index);
     section.dataset.anchor = ch.href;
-    const h = document.createElement("h2");
-    h.className = "book-chapter-title";
-    h.textContent = ch.title || "";
-    section.appendChild(h);
     const body = document.createElement("div");
     body.className = "book-chapter-body";
     body.innerHTML = ch.xhtml; // DOMPurify-sanitized in main (M6 §11-15)
@@ -734,6 +741,121 @@ function buildBookToc(loaded) {
     });
     li.appendChild(b);
     list.appendChild(li);
+  }
+}
+
+// ---- M6 §26/§38: reading progress + bookmarks (reader-location model) ----
+function bookProgressFromDom() {
+  const sections = els.content.querySelectorAll('.book-chapter');
+  const anchorY = window.scrollY + window.innerHeight * 0.3;
+  let chapterIndex = 0;
+  let ratio = 0;
+  for (const sec of sections) {
+    const rect = sec.getBoundingClientRect();
+    const top = rect.top + window.scrollY;
+    if (top <= anchorY) {
+      chapterIndex = Number(sec.dataset.chapterIndex) || 0;
+      ratio = rect.height > 0 ? Math.min(1, Math.max(0, (anchorY - top) / rect.height)) : 0;
+    }
+  }
+  return { chapter_index: chapterIndex, scroll_ratio: Number(ratio.toFixed(4)) };
+}
+
+function gotoBookLocation(loc) {
+  if (typeof loc?.chapter_index !== 'number') return;
+  const sec = els.content.querySelector(`.book-chapter[data-chapter-index='${loc.chapter_index}']`);
+  if (!sec) return;
+  const rect = sec.getBoundingClientRect();
+  const top = rect.top + window.scrollY;
+  const ratio = typeof loc.scroll_ratio === 'number' ? Math.min(1, Math.max(0, loc.scroll_ratio)) : 0;
+  window.scrollTo({ top: Math.max(0, Math.round(top + rect.height * ratio - window.innerHeight * 0.3)), behavior: 'smooth' });
+}
+
+let progressTimer = null;
+function setupBookProgress(documentId) {
+  // swap out the previous book's listener so a late scroll never writes stale progress
+  const prev = window.__revProgressListener;
+  if (prev) window.removeEventListener('scroll', prev);
+  const listener = () => {
+    if (!currentDoc || currentDoc.documentId !== documentId || currentDoc.type !== 'book') return;
+    clearTimeout(progressTimer);
+    progressTimer = setTimeout(() => {
+      if (!currentDoc || currentDoc.documentId !== documentId || currentDoc.type !== 'book') return;
+      reverie.bookSaveProgress(documentId, bookProgressFromDom()).catch(() => {});
+    }, 400);
+  };
+  window.__revProgressListener = listener;
+  window.addEventListener('scroll', listener, { passive: true });
+}
+
+function restoreBookProgress(loaded) {
+  const loc = loaded.last_location;
+  if (!loc || typeof loc.chapter_index !== 'number') return;
+  if (loc.chapter_index > 0 || (typeof loc.scroll_ratio === 'number' && loc.scroll_ratio > 0.01)) {
+    gotoBookLocation(loc);
+  }
+}
+
+// ---- M6 §28-30: in-book search over the canonical text ----
+const bookSearchInput = document.getElementById('book-search');
+const bookSearchList = document.getElementById('book-search-results');
+let bookSearchTimer = null;
+bookSearchInput.addEventListener('input', () => {
+  clearTimeout(bookSearchTimer);
+  bookSearchTimer = setTimeout(runBookSearch, 200);
+});
+
+function bookChapterOffsets(loaded) {
+  const spans = [];
+  let pos = 0;
+  for (const ch of loaded.chapters) {
+    spans.push({ index: ch.index, title: ch.title, start: pos, end: pos + ch.text.length });
+    pos += ch.text.length;
+  }
+  return spans;
+}
+
+function runBookSearch() {
+  bookSearchList.textContent = '';
+  const term = bookSearchInput.value.trim();
+  const text = currentDoc?.canonicalText;
+  if (!term || !text || currentDoc.type !== 'book') return;
+  const lower = text.toLowerCase();
+  const lowerTerm = term.toLowerCase();
+  const spans = bookChapterOffsets(currentDoc);
+  const chapterAt = (off) => spans.find((s) => off >= s.start && off < s.end) ?? spans[spans.length - 1];
+  const MAX = 200;
+  let hits = 0;
+  let from = 0;
+  while (hits < MAX) {
+    const i = lower.indexOf(lowerTerm, from);
+    if (i === -1) break;
+    from = i + lowerTerm.length;
+    hits += 1;
+    const ch = chapterAt(i);
+    const snippet = text.slice(Math.max(0, i - 20), Math.min(text.length, i + term.length + 30)).replace(/\s+/g, ' ');
+    const li = document.createElement('li');
+    const head = document.createElement('p');
+    head.className = 'bs-chapter';
+    head.textContent = ch.title || `第 ${ch.index + 1} 章`;
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'bs-hit';
+    row.appendChild(snippetWithMark(snippet, term));
+    row.addEventListener('click', () => {
+      // canonical offsets are valid in the DOM: both sides share one text (M6 §33)
+      const range = ReaderAnchor.rangeForOffsets(els.content, i, i + term.length);
+      flashRange(range);
+      document.getElementById('book-toc').hidden = true;
+    });
+    li.append(head, row);
+    bookSearchList.appendChild(li);
+  }
+  if (hits === 0 || hits === MAX) {
+    const p = document.createElement('p');
+    p.className = 'bs-empty';
+    p.textContent = hits === 0 ? '没有找到匹配的结果。' : '仅显示前 200 条结果。';
+    bookSearchList.appendChild(p);
   }
 }
 // ============================================================ search box + keyboard (M3 §77-79)
@@ -787,6 +909,15 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
 });
 document.getElementById('btn-annotations').addEventListener('click', () => { panel.hidden = !panel.hidden; });
 document.getElementById('btn-toc').addEventListener('click', () => { const t = document.getElementById('book-toc'); t.hidden = !t.hidden; });
+document.getElementById('btn-bookmark').addEventListener('click', async () => {
+  if (!currentDoc || currentDoc.type !== 'book') return;
+  try {
+    await reverie.bookAddBookmark(currentDoc.documentId, bookProgressFromDom());
+    await refreshAnnotations();
+  } catch (err) {
+    console.error('bookmark failed:', err.message);
+  }
+});
 
 document.getElementById('btn-export-md').addEventListener('click', async () => {
   if (!currentDoc) return;

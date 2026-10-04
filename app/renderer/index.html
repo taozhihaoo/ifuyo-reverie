@@ -46,6 +46,7 @@
       <button id="btn-back" type="button">← 返回</button>
       <button id="btn-annotations" type="button">标注 (<span id="annotation-count">0</span>)</button>
       <button id="btn-toc" type="button">目录</button>
+      <button id="btn-bookmark" type="button" hidden>书签</button>
       <button id="btn-export-md" type="button">导出 MD</button>
       <button id="btn-export-epub" type="button">导出 EPUB</button>
       <div id="reader-meta"></div>
@@ -57,6 +58,9 @@
   <aside id="book-toc" hidden>
     <h2>目录</h2>
     <ul id="book-toc-list"></ul>
+    <h2>书内搜索</h2>
+    <input id="book-search" type="text" placeholder="在本书中查找…" spellcheck="false">
+    <ul id="book-search-results"></ul>
   </aside>
   <aside id="annotation-panel" hidden>
     <h2>标注</h2>

@@ -59,18 +59,9 @@ async function loadArticle(documentId) {
 
   // M6: books are EPUB documents read via the EPUB Reader Adapter
   if (entry.type === 'book') {
-    const { openBookSession, bookCanonicalText, chapterSanitizedXhtml } = await import('../src/reader/epub-reader-core.js');
+    const { openBookSession, bookCanonicalText } = await import('../src/reader/epub-reader-core.js');
     const session = await openBookSession(path.join(dir, 'book.epub'));
     const canonicalText = bookCanonicalText(session);
-    const chapters = [];
-    for (const ch of session.chapters) {
-      chapters.push({
-        index: ch.index,
-        title: ch.title,
-        href: ch.href,
-        xhtml: await chapterSanitizedXhtml(session.container, ch.href),
-      });
-    }
     const service = createAnnotationService({
       articleDir: dir,
       documentId,
@@ -81,7 +72,11 @@ async function loadArticle(documentId) {
       entry, dir,
       meta: { ...entry, title: entry.title },
       type: 'book',
-      chapters,
+      // chapter.xhtml is the sanitized body HTML — identical string the
+      // renderer inserts, so DOM textContent == canonicalText (M6 §33)
+      chapters: session.chapters.map((ch) => ({
+        index: ch.index, title: ch.title, href: ch.href, xhtml: ch.xhtml, text: ch.text,
+      })),
       canonicalText,
       service,
       read_state: readState.states[documentId]?.state ?? 'unread',
@@ -250,6 +245,12 @@ function registerIpc() {
   ipcMain.handle('book:save-progress', async (_e, { documentId, last_location }) => {
     await updateUserState(documentId, { last_location });
     return { ok: true };
+  });
+  ipcMain.handle('book:add-bookmark', async (_e, { documentId, location }) => {
+    const loaded = await loadArticle(documentId);
+    if (loaded.type !== 'book') throw new Error('bookmarks are only supported for books');
+    const { annotation } = await loaded.service.createBookmark({ location });
+    return annotation;
   });
   ipcMain.handle('export:documents', async (_e, { documentIds, format = 'markdown', destDir }) => {
     if (!Array.isArray(documentIds) || documentIds.length === 0) return { exported_count: 0, failed_count: 0, failed: [] };

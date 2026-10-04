@@ -240,3 +240,18 @@ mark { background: rgba(255, 213, 79, 0.6); }
 #book-toc-list { list-style: none; margin: 0; padding: 0; }
 #book-toc-list button { display: block; width: 100%; text-align: left; border: none; background: none; font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
 #book-toc-list button:hover { background: #f1eee8; }
+#book-search {
+  width: 100%; font: inherit; font-size: 13px; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 6px; box-sizing: border-box;
+  margin-bottom: 8px;
+}
+#book-search-results { list-style: none; margin: 0; padding: 0; }
+.bs-chapter { margin: 8px 0 2px; font-size: 12px; color: var(--muted); }
+.bs-hit {
+  display: block; width: 100%; text-align: left; border: none; background: none;
+  font: inherit; font-size: 13px; line-height: 1.5; padding: 4px 8px;
+  border-radius: 6px; cursor: pointer;
+}
+.bs-hit:hover { background: #f1eee8; }
+.bs-hit mark { background: #ffe9a8; }
+.bs-empty { font-size: 12px; color: var(--muted); margin: 6px 0; }
