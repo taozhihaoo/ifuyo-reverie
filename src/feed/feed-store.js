@@ -6,6 +6,7 @@
  */
 import path from 'node:path';
 import { writeFileAtomic } from '../core/atomic-write.js';
+import { UnsupportedVersionError } from '../core/errors.js';
 import { newId } from '../core/ids.js';
 
 export const FEEDS_VERSION = 1;
@@ -40,13 +41,28 @@ export async function loadFeeds(libraryRoot) {
   const { promises: fsp } = await import('node:fs');
   try {
     const raw = JSON.parse(await fsp.readFile(feedsPath(libraryRoot), 'utf8'));
+    if (typeof raw?.feeds_version === 'number' && raw.feeds_version > FEEDS_VERSION
+      && Array.isArray(raw.feeds)) {
+      // M10 §26: future version → read-only protection; the marker travels on
+      // the returned object so every save path refuses to overwrite it
+      return { feeds_version: raw.feeds_version, feeds: raw.feeds, unsupported: true };
+    }
     if (raw?.feeds_version === FEEDS_VERSION && Array.isArray(raw.feeds)) return raw;
   } catch { /* missing/torn -> fresh */ }
   return { feeds_version: FEEDS_VERSION, feeds: [] };
 }
 
 export async function saveFeeds(libraryRoot, data) {
+  if (data?.unsupported) {
+    throw new UnsupportedVersionError('订阅文件', feedsPath(libraryRoot), data.feeds_version, FEEDS_VERSION);
+  }
   await writeFileAtomic(feedsPath(libraryRoot), JSON.stringify(data, null, 2));
+}
+
+/** Doctor visibility: is the subscriptions file version-locked read-only? */
+export async function feedsUnsupportedVersion(libraryRoot) {
+  const data = await loadFeeds(libraryRoot);
+  return data.unsupported ? data.feeds_version : null;
 }
 
 /** Create a subscription. Caller must have validated the feed (M4 §88). */

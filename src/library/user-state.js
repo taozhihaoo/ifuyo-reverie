@@ -11,6 +11,7 @@
  */
 import { promises as fsp } from 'node:fs';
 import { writeFileAtomic } from '../core/atomic-write.js';
+import { UnsupportedVersionError } from '../core/errors.js';
 import { getReadStatePath, getLibraryRoot } from '../core/paths.js';
 import path from 'node:path';
 
@@ -73,6 +74,10 @@ const migrateLegacyReadState = (legacy) => {
 };
 
 let cache = null;
+/** True while the on-disk file has a NEWER schema version than this build —
+ * reads still work, but every write is refused (M10 §26: a future version
+ * must never be silently reset to an older shape). Reset by tests. */
+let unsupportedVersion = null;
 
 /** Load user state (cached per process; tests can forceReload). */
 export async function loadUserState({ forceReload = false } = {}) {
@@ -81,8 +86,16 @@ export async function loadUserState({ forceReload = false } = {}) {
   let data = null;
   try {
     data = JSON.parse(await fsp.readFile(filePath, 'utf8'));
+    if (typeof data?.schema_version === 'number' && data.schema_version > USER_STATE_VERSION
+      && typeof data.states === 'object') {
+      // M10 §26: future version → read-only protection, never rewrite
+      unsupportedVersion = data.schema_version;
+      cache = data;
+      return cache;
+    }
     if (data?.schema_version !== USER_STATE_VERSION || typeof data.states !== 'object') data = null;
   } catch { /* missing or torn -> migrate/defaults */ }
+  unsupportedVersion = null;
 
   if (data) {
     cache = data;
@@ -112,6 +125,9 @@ export function stateOf(userState, documentId) {
 /** Patch one document's state (create/merge), atomic; returns the new state. */
 export async function updateUserState(documentId, patch, { now = new Date().toISOString() } = {}) {
   const userState = await loadUserState();
+  if (unsupportedVersion !== null) {
+    throw new UnsupportedVersionError('用户状态文件', userStatePath(), unsupportedVersion, USER_STATE_VERSION);
+  }
   const current = stateOf(userState, documentId);
   const next = { ...current };
   if (patch.read !== undefined) {
@@ -149,6 +165,9 @@ export async function updateUserState(documentId, patch, { now = new Date().toIS
 /** Forget a deleted document's state. */
 export async function forgetDocument(documentId) {
   const userState = await loadUserState();
+  if (unsupportedVersion !== null) {
+    throw new UnsupportedVersionError('用户状态文件', userStatePath(), unsupportedVersion, USER_STATE_VERSION);
+  }
   if (!(documentId in userState.states)) return false;
   delete userState.states[documentId];
   await writeFileAtomic(userStatePath(), JSON.stringify(userState, null, 2));
@@ -156,7 +175,13 @@ export async function forgetDocument(documentId) {
   return true;
 }
 
+/** Doctor visibility: is the state file currently version-locked read-only? */
+export function userStateUnsupportedVersion() {
+  return unsupportedVersion;
+}
+
 /** Test hook: clear the in-process cache. */
 export function resetCacheForTests() {
   cache = null;
+  unsupportedVersion = null;
 }
