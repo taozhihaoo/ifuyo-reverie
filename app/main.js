@@ -56,6 +56,39 @@ async function loadArticle(documentId) {
   const entry = index.entries.find((e) => e.document_id === documentId);
   if (!entry) throw new Error(`unknown document: ${documentId}`);
   const dir = path.join(libraryRoot, entry.path);
+
+  // M6: books are EPUB documents read via the EPUB Reader Adapter
+  if (entry.type === 'book') {
+    const { openBookSession, bookCanonicalText, chapterSanitizedXhtml } = await import('../src/reader/epub-reader-core.js');
+    const session = await openBookSession(path.join(dir, 'book.epub'));
+    const canonicalText = bookCanonicalText(session);
+    const chapters = [];
+    for (const ch of session.chapters) {
+      chapters.push({
+        index: ch.index,
+        title: ch.title,
+        href: ch.href,
+        xhtml: await chapterSanitizedXhtml(session.container, ch.href),
+      });
+    }
+    const service = createAnnotationService({
+      articleDir: dir,
+      documentId,
+      getReaderContext: async () => ({ canonicalText }),
+    });
+    const readState = await loadReadState();
+    return {
+      entry, dir,
+      meta: { ...entry, title: entry.title },
+      type: 'book',
+      chapters,
+      canonicalText,
+      service,
+      read_state: readState.states[documentId]?.state ?? 'unread',
+      last_location: readState.states[documentId]?.last_location ?? null,
+    };
+  }
+
   const meta = await verifyArticleDir(dir); // integrity check on every open
   const markdown = await fsp.readFile(path.join(dir, 'article.md'), 'utf8');
   const { blocks, canonicalText } = parseMarkdownBlocks(markdown);
@@ -81,25 +114,31 @@ function registerIpc() {
   });
 
   ipcMain.handle('article:load', async (_e, documentId) => {
-    const { entry, dir, meta, markdown, blocks, canonicalText, service } = await loadArticle(documentId);
+    const loaded = await loadArticle(documentId);
     const readState = await loadReadState();
-    const { annotations, invalid, duplicates } = await service.listResolved();
+    const { annotations, invalid, duplicates } = await loaded.service.listResolved();
     // Recent view source of truth (M3 §131): persist on open, then refresh the derived index
     await updateUserState(documentId, { last_opened_at: new Date().toISOString() });
     await refreshSearchIndex(libraryRoot).catch(() => {});
     if (invalid.length > 0 || duplicates.length > 0) {
       console.error(`[reverie] annotation diagnostics for ${documentId}:`, JSON.stringify({ invalid, duplicates }));
     }
+    if (loaded.type === 'book') {
+      return {
+        meta: loaded.meta, type: 'book', dir: loaded.dir,
+        chapters: loaded.chapters, canonicalText: loaded.canonicalText,
+        annotations, diagnostics: { invalid, duplicates },
+        read_state: readState.states[documentId]?.state ?? 'unread',
+        last_location: loaded.last_location ?? null,
+        path: loaded.entry.path,
+      };
+    }
     return {
-      meta,
-      markdown,
-      blocks,
-      canonicalText,
-      dir,
-      annotations,
-      diagnostics: { invalid, duplicates },
+      meta: loaded.meta, type: 'article', dir: loaded.dir,
+      markdown: loaded.markdown, blocks: loaded.blocks, canonicalText: loaded.canonicalText,
+      annotations, diagnostics: { invalid, duplicates },
       read_state: readState.states[documentId]?.state ?? 'unread',
-      path: entry.path,
+      path: loaded.entry.path,
     };
   });
 
@@ -191,6 +230,26 @@ function registerIpc() {
   ipcMain.handle('dialog:pick-export-dir', async () => {
     const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0];
+  });
+  ipcMain.handle('dialog:pick-epub', async () => {
+    const r = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'EPUB', extensions: ['epub'] }],
+    });
+    return r.canceled ? null : r.filePaths[0];
+  });
+  ipcMain.handle('book:add', async (_e, { sourcePath }) => {
+    const { addEpubBook } = await import('../src/reader/book-library.js');
+    const result = await addEpubBook(libraryRoot, sourcePath);
+    invalidateSearchIndex();
+    await rebuildIndex(libraryRoot).catch(() => {});
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return result;
+  });
+  ipcMain.handle('book:save-progress', async (_e, { documentId, last_location }) => {
+    await updateUserState(documentId, { last_location });
+    return { ok: true };
   });
   ipcMain.handle('export:documents', async (_e, { documentIds, format = 'markdown', destDir }) => {
     if (!Array.isArray(documentIds) || documentIds.length === 0) return { exported_count: 0, failed_count: 0, failed: [] };

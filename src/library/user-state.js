@@ -122,6 +122,14 @@ export async function updateUserState(documentId, patch, { now = new Date().toIS
   if (patch.inbox !== undefined) next.inbox = Boolean(patch.inbox);
   if (patch.tags !== undefined) next.tags = normalizeTags(patch.tags);
   if (patch.last_opened_at !== undefined) next.last_opened_at = patch.last_opened_at;
+  if (patch.last_location !== undefined) {
+    // M6 reading position: { chapter_index, scroll_ratio } — free-form but
+    // validated minimally; belongs to the user, never into the book file.
+    const loc = patch.last_location;
+    if (loc && typeof loc === 'object' && Number.isInteger(loc.chapter_index) && loc.chapter_index >= 0) {
+      next.last_location = { chapter_index: loc.chapter_index, scroll_ratio: Number(loc.scroll_ratio ?? 0) || 0 };
+    }
+  }
   next.updated_at = now;
   userState.states[documentId] = next;
   await writeFileAtomic(userStatePath(), JSON.stringify(userState, null, 2));

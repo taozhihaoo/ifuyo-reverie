@@ -92,8 +92,13 @@ export async function buildSearchableDocument(libraryRoot, entry, userState) {
     const stamp = await stampFor(docDir);
     let body = '';
     try {
-      const raw = await fsp.readFile(path.join(docDir, 'article.md'), 'utf8');
-      body = parseMarkdownBlocks(raw).canonicalText.slice(0, BODY_INDEX_LIMIT);
+      if (entry.book_body) {
+        // type=book: scan extracted chapter text from book.epub
+        body = entry.book_body;
+      } else {
+        const raw = await fsp.readFile(path.join(docDir, 'article.md'), 'utf8');
+        body = parseMarkdownBlocks(raw).canonicalText.slice(0, BODY_INDEX_LIMIT);
+      }
     } catch { /* body unavailable -> metadata-only document, still searchable */ }
     const state = stateOf(userState, entry.document_id);
     return {

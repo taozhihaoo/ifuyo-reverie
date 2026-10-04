@@ -227,3 +227,16 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 #review-nav { display: flex; gap: 8px; margin-top: 16px; }
 #review-empty { color: var(--muted); text-align: center; padding: 32px 0; }
 mark { background: rgba(255, 213, 79, 0.6); }
+
+/* ---- M6: EPUB reader ---- */
+.book-chapter { margin-bottom: 3em; }
+.book-chapter-title { color: var(--muted); font-size: 14px; letter-spacing: 0.06em; }
+#book-toc {
+  position: fixed; top: 49px; right: 0; bottom: 0; width: 300px;
+  background: #fff; border-left: 1px solid var(--line);
+  overflow-y: auto; padding: 14px 16px; z-index: 3;
+}
+#book-toc h2 { font-size: 14px; margin: 0 0 10px; color: var(--muted); }
+#book-toc-list { list-style: none; margin: 0; padding: 0; }
+#book-toc-list button { display: block; width: 100%; text-align: left; border: none; background: none; font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+#book-toc-list button:hover { background: #f1eee8; }

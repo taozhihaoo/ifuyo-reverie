@@ -199,6 +199,23 @@ async function renderFeedList() {
     row.appendChild(actions);
     box.appendChild(row);
   }
+  // M6: EPUB add button (wire once)
+  const addBtn = document.getElementById('btn-add-epub');
+  if (addBtn && !addBtn.dataset.wired) {
+    addBtn.dataset.wired = '1';
+    addBtn.addEventListener('click', async () => {
+      const p = await reverie.pickEpub();
+      if (!p) return;
+      addBtn.disabled = true;
+      try {
+        await reverie.bookAdd(p);
+        await showLibrary();
+      } catch (err) {
+        alert('EPUB 添加失败：' + String(err.message ?? err).slice(0, 80));
+      }
+      addBtn.disabled = false;
+    });
+  }
 }
 
 async function refreshFeedById(feedId) {
@@ -651,6 +668,7 @@ async function refreshAnnotations() {
 function hidePanel() { panel.hidden = true; }
 
 // ============================================================ views
+
 async function openArticle(documentId) {
   const loaded = await reverie.articleLoad(documentId);
   currentDoc = { documentId, ...loaded };
@@ -658,36 +676,66 @@ async function openArticle(documentId) {
   searchResults.hidden = true;
   els.reader.hidden = false;
   panel.hidden = true;
-  els.title.textContent = loaded.meta.title ?? '(untitled)';
+  hidePopup();
+  els.title.textContent = loaded.meta.title ?? "(untitled)";
   els.meta.textContent = [
     loaded.meta.author,
-    loaded.meta.source?.canonical_url ? hostOf(loaded.meta.source.canonical_url) : hostOf(loaded.meta.source?.original_url ?? ''),
-    `保存于 ${fmtDate(loaded.meta.captured_at)}`,
-  ].filter(Boolean).join(' · ');
+    loaded.meta.source?.canonical_url ? hostOf(loaded.meta.source.canonical_url) : hostOf(loaded.meta.source?.original_url ?? ""),
+    "保存于 " + fmtDate(loaded.meta.captured_at),
+  ].filter(Boolean).join(" · ");
+  els.content.textContent = "";
 
-  const ctx = {
-    resolveImage: async (rel) => await reverie.articleResolvePath(documentId, rel),
-  };
-  els.content.textContent = '';
-  els.content.appendChild(renderBlocks(loaded.blocks, ctx));
+  if (loaded.type === "book") {
+    renderBookChapters(loaded);
+    buildBookToc(loaded);
+  } else {
+    const ctx = { resolveImage: async (rel) => await reverie.articleResolvePath(documentId, rel) };
+    els.content.appendChild(renderBlocks(loaded.blocks, ctx));
+  }
   renderPanel(loaded.annotations);
   requestAnimationFrame(() => applyHighlights(loaded.annotations));
 
-  // Open Original for feed-sourced articles (M4 §129)
-  const originalUrl = loaded.meta.source?.original_url;
-  if (originalUrl && /^https?:/.test(originalUrl)) {
-    const openBtn = document.createElement('button');
-    openBtn.type = 'button';
-    openBtn.textContent = '打开原文 ↗';
-    openBtn.addEventListener('click', () => reverie.openExternal(originalUrl));
-    els.meta.prepend(openBtn, document.createTextNode(' '));
-  }
-
   const entry = (await reverie.libraryList()).entries.find((e) => e.document_id === documentId);
-  if (entry?.read_state !== 'read') await reverie.articleReadState(documentId, 'read');
+  if (entry?.read_state !== "read") await reverie.articleReadState(documentId, "read");
   window.scrollTo(0, 0);
 }
 
+// ---- M6: EPUB chapters (sanitized XHTML from main; safe under CSP) ----
+function renderBookChapters(loaded) {
+  for (const ch of loaded.chapters) {
+    const section = document.createElement("section");
+    section.className = "book-chapter";
+    section.dataset.chapterIndex = String(ch.index);
+    section.dataset.anchor = ch.href;
+    const h = document.createElement("h2");
+    h.className = "book-chapter-title";
+    h.textContent = ch.title || "";
+    section.appendChild(h);
+    const body = document.createElement("div");
+    body.className = "book-chapter-body";
+    body.innerHTML = ch.xhtml; // DOMPurify-sanitized in main (M6 §11-15)
+    section.appendChild(body);
+    els.content.appendChild(section);
+  }
+}
+
+function buildBookToc(loaded) {
+  const toc = document.getElementById("book-toc");
+  const list = document.getElementById("book-toc-list");
+  list.textContent = "";
+  for (const ch of loaded.chapters) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ch.title || ch.href;
+    b.addEventListener("click", () => {
+      const sec = els.content.querySelector("[data-anchor='" + CSS.escape(ch.href) + "']");
+      if (sec) { sec.scrollIntoView({ behavior: "smooth" }); toc.hidden = true; }
+    });
+    li.appendChild(b);
+    list.appendChild(li);
+  }
+}
 // ============================================================ search box + keyboard (M3 §77-79)
 let debounceTimer = null;
 searchInput.addEventListener('input', () => {
@@ -738,6 +786,8 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
   setTimeout(() => { els.queueHint.textContent = ''; }, 2500);
 });
 document.getElementById('btn-annotations').addEventListener('click', () => { panel.hidden = !panel.hidden; });
+document.getElementById('btn-toc').addEventListener('click', () => { const t = document.getElementById('book-toc'); t.hidden = !t.hidden; });
+
 document.getElementById('btn-export-md').addEventListener('click', async () => {
   if (!currentDoc) return;
   const dest = await reverie.pickExportDir();

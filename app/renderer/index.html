@@ -29,6 +29,7 @@
     <div id="feed-add">
       <input id="feed-url" type="text" placeholder="RSS / Atom URL，回车添加" spellcheck="false">
     </div>
+    <button id="btn-add-epub" type="button" class="facet">+ 添加 EPUB</button>
     <h3>标签</h3>
     <div id="tag-facets"></div>
   </nav>
@@ -44,6 +45,7 @@
     <header>
       <button id="btn-back" type="button">← 返回</button>
       <button id="btn-annotations" type="button">标注 (<span id="annotation-count">0</span>)</button>
+      <button id="btn-toc" type="button">目录</button>
       <button id="btn-export-md" type="button">导出 MD</button>
       <button id="btn-export-epub" type="button">导出 EPUB</button>
       <div id="reader-meta"></div>
@@ -52,6 +54,10 @@
     <div id="reader-content"></div>
   </article>
 
+  <aside id="book-toc" hidden>
+    <h2>目录</h2>
+    <ul id="book-toc-list"></ul>
+  </aside>
   <aside id="annotation-panel" hidden>
     <h2>标注</h2>
     <ul id="annotation-list"></ul>

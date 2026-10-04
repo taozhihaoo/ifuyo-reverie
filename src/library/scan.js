@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { readMeta } from '../core/meta.js';
 import { readAnnotationsFile } from '../annotation/store.js';
+import { openBookSession } from '../reader/epub-reader-core.js';
 
 const DOC_TYPES = new Set(['articles', 'books', 'pdf', 'markdown', 'text']);
 
@@ -40,6 +41,14 @@ export async function scanLibrary(libraryRoot) {
       }
       try {
         const meta = await readMeta(docDir);
+        let bookBody = null;
+        if (meta.type === "book") {
+          try {
+            const { openBookSession } = await import("../reader/epub-reader-core.js");
+            const session = await openBookSession(path.join(docDir, "book.epub"));
+            bookBody = session.chapters.map((c) => c.text).join('\n\n').slice(0, 200 * 1024);
+          } catch { /* broken book -> indexed without body */ }
+        }
         const { annotations, invalid } = await readAnnotationsFile(path.join(docDir, 'annotations.jsonl'));
         if (invalid.length > 0) {
           errors.push({ path: docDir, reason: `${invalid.length} unparsable annotation line(s)` });
@@ -73,6 +82,7 @@ export async function scanLibrary(libraryRoot) {
           feed_id: meta.feed_id ?? null,
           feed_title: meta.feed_title ?? null,
           external_id: meta.external_id ?? null,
+          book_body: bookBody,
           original_url: meta.source?.original_url ?? null,
           canonical_url: meta.source?.canonical_url ?? null,
           content_hash: meta.source?.content_hash ?? null,
