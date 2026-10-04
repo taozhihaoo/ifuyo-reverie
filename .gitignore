@@ -27,3 +27,4 @@ native-host/data/
 tests/fixtures/pdf/render-out.png
 build-info.json
 artifacts/
+tmp-m12-dump.mjs
