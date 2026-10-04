@@ -56,8 +56,12 @@ Daily Review（确定性队列）；1,000 条导入 9.4s/条均写、幂等重�
 
 EPUB 2/3 解析（自研 over jsdom，DOCTYPE/XXE 防线）、TOC 双通道（nav+NCX）、
 书库（books/<id>/book.epub 不可变）、滚动式章节阅读、全书 text-quote 标注（复用 M2）、
-进度 last_location（user-state，与渲染解耦）、书正文进入全局搜索。
-限制：滚动式而非 foliate-js 分页视图、text-quote 而非 CFI（漂移已记录）、FL/Overlays 未做。
+进度 last_location（user-state，与渲染解耦）、书签（reader-location）、
+书内搜索（canonical 直读 offset）、书正文进入全局搜索。
+高亮链路闭环：canonical = 渲染层同一净化输出的 textContent（fragment 语义），
+主/渲染层偏移直读（集成测试锁定）。
+限制：滚动式而非 foliate-js 分页视图、text-quote 而非 CFI（漂移已记录）、
+键盘导航/阅读设置/FL/Overlays 未做。
 
 ## M7-M12
 
