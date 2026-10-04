@@ -83,6 +83,15 @@ TTS = Unified Reader Shell 共享能力：Web Speech API（Windows 本地语音�
 限制：Markdown/TXT 随 Reader 支持自动到位；暂停为句级重读（引擎 pause 不可靠）；
 扫描 PDF 明确不可朗读。
 
-## M9-M12
+## M9 — 高级 EPUB Export / Web→EPUB ✅
+
+单一 EPUB 导出管线：M2 block 模型→富 XHTML（加粗/斜体/行内码/链接/图片内容寻址去重）、
+多文档合并成书（题名页/目录/章节标题去重/确定性 identifier）、标注与笔记附录、
+原子写+M6 回读验证、取消/部分失败报告；Web→EPUB 复用 M1 采集全管线（已入库文章
+离线零网络导出）。真机验证：npm run smoke:epub（8/8——UI 批量导出→M6 回读）。299/299 测试。
+真机修复：els.queueHint 缺失（重建索引按钮真机静默失败，M3 遗留）、libraryView 缺 type 投影。
+限制：表格不导出、流式 zip 留技术债、外部 validator 未接入（标准结构+M6 回读背书）。
+
+## M10-M12
 
 未开始（顺序见总纲领：PDF → TTS → 导出增强 → 稳定性 → 产品化 → 自用 1.0）。

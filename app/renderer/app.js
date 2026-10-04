@@ -129,6 +129,7 @@ const els = {
   title: document.getElementById('reader-title'),
   meta: document.getElementById('reader-meta'),
   content: document.getElementById('reader-content'),
+  queueHint: document.getElementById('queue-hint'),
 };
 const searchInput = document.getElementById('search-input');
 const searchResults = document.getElementById('search-results');
@@ -380,11 +381,12 @@ let currentViewArticleIds = [];
 
 async function exportCurrentViewAsEpub() {
   if (currentViewArticleIds.length === 0) return;
+  // NOTE: window.prompt does not exist in Electron — use the default title
+  // directly (M9 §64: first export should be simple); the file can be renamed.
   const viewLabel = { all: '全部资料', inbox: 'Inbox', unread: '未读', favorites: '收藏', recent: '最近阅读' }[currentView] ?? (activeFeedId ? '订阅源' : currentTags.join('+') || '所选标签');
-  const suggested = `Reverie ${viewLabel} ${new Date().toISOString().slice(0, 10)}`;
-  const bookTitle = prompt(`导出当前视图 ${currentViewArticleIds.length} 篇文章为一个 EPUB（合并成书）。书名：`, suggested);
-  if (bookTitle === null) return;
-  const dest = await reverie.pickExportDir();
+  const bookTitle = `Reverie ${viewLabel} ${new Date().toISOString().slice(0, 10)}`;
+  // test hook: CDP smokes cannot drive the native directory dialog
+  const dest = await (window.__reverieExportDirPicker ? window.__reverieExportDirPicker() : reverie.pickExportDir());
   if (!dest) return;
   els.queueHint.textContent = '正在导出 EPUB…';
   try {
@@ -405,7 +407,7 @@ async function exportCurrentViewAsEpub() {
     els.queueHint.textContent = '';
     alert('导出失败：' + String(err.message ?? err).slice(0, 120));
   }
-  setTimeout(() => { els.queueHint.textContent = ''; }, 6000);
+  setTimeout(() => { els.queueHint.textContent = ''; }, 8000);
 }
 
 function renderLibraryRow(e) {

@@ -338,6 +338,7 @@ export async function queryLibrary(rawQuery, {
     results: docs.slice(offset, offset + limit).map((d) => ({
       document_id: d.document_id,
       title: d.title,
+      type: d.type,
       author: d.author,
       captured_at: d.captured_at,
       last_opened_at: d.last_opened_at,

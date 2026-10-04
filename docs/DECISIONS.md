@@ -76,3 +76,18 @@
 | 控制器 DOM-free + Provider 注入（UMD shim） | 状态机/队列/并发在 Node 完整测试（FakeProvider），第三方 API 只在 tts-provider.js（M8 §12） |
 | 设置存 localStorage（voiceId+rate） | 无独立数据库/无新数据格式（§36/§58）；本地即弃性质 |
 | 选区朗读 = 一次性队列，不滚动不写进度 | §25：朗读选区不得移动 Progress、不产生标注 |
+
+## M9
+
+| 决定 | 理由 |
+| --- | --- |
+| 单一活跃 EPUB 管线：epub-builder + epub-export-service（M5 旧函数 deprecated 保留供单测） | §75 防五套 Exporter；调用方全部迁移到新引擎 |
+| 验证 = 真实 M6 回读（openEpubContainer/parseOpf）而非自写 parser 自证 | §33：验证生成的 EPUB 本身；零新依赖零 validator runtime；外部 epubcheck 留 Adapter 边界未接入（记录） |
+| 章节 = Article（§12 优先），合并书才加题名页；单篇不再按 H1 裂章 | 捕获文章的 H1 是标题本身，裂章产生空首章（真机实测发现）；Article=Chapter 语义最直白 |
+| 图片 = 内容寻址 images/<sha256>.<ext>，跨文档去重；缺失→warning+摘除+OPF 同步 | §22/§23：资产身份即内容哈希；manifest 永不宣称 zip 里不存在的资源（§29） |
+| identifier = urn:reverie:book-<sha1(sorted docIds+title)[:16]> | §14 禁止随机 GUID；同内容同配置导出身份稳定 |
+| 原子写 = <name>.epub.<ts>.tmp → 校验 → rename；失败/取消必清 tmp | §31/§43/§94/§95：绝不半成品、绝不静默覆盖 |
+| Web→EPUB = runCapture（M1 全管线）→ scanLibrary 文件定位 → 导出 | §15/§59：零第二套 HTTP/解析/清洗；导出永不依赖索引 |
+| 离线优先：已入库文章导出零网络，只读本地 assets | §89/§90：断网可导出是核心验收（测试锁定） |
+| 批量顺序 = 当前视图显示顺序（用户所见即所得）；重复 id 去重；空文档 skipped | §68/§69/§42：稳定、可解释、不静默 |
+| UI 书名 = 默认名直出（无 prompt 对话框） | Electron 渲染层无 window.prompt（真机踩坑）；§64 第一次导出应简单 |
