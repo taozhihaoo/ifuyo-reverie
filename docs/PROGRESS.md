@@ -74,6 +74,15 @@ M2/M3/M6 全链路复用）、Outline/页导航/缩放、全局+书内搜索（C
 限制：链接层未渲染（外链默认不触发，安全默认）、无旋转 UI、无缩略图栏、
 扫描件无文本层时正文能力明确降级（OCR 永久排除）。详见 docs/M7-STATUS.md 能力表。
 
-## M8-M12
+## M8 — TTS 有声阅读 ✅
+
+TTS = Unified Reader Shell 共享能力：Web Speech API（Windows 本地语音，零依赖零网络）、
+句子级 ReadingSegments（canonical 偏移，三格式统一）、段级暂停/语速/语音语言匹配、
+从当前位置朗读、选区朗读（不碰进度）、自动连读 + 蓝色高亮跟随、导航即中断。
+真实运行验证：npm run smoke:tts（真实语音引擎 7/7）。282/282 测试。
+限制：Markdown/TXT 随 Reader 支持自动到位；暂停为句级重读（引擎 pause 不可靠）；
+扫描 PDF 明确不可朗读。
+
+## M9-M12
 
 未开始（顺序见总纲领：PDF → TTS → 导出增强 → 稳定性 → 产品化 → 自用 1.0）。

@@ -64,3 +64,15 @@
 | CSP 不放宽：cmaps/fonts/wasm 经 `pdf:vendor-data` IPC（目录+扩展名白名单）供给 | 沙箱渲染层无法 fetch file://；connect-src 'none' 是 M0 安全基线，不为便利让步 |
 | 密码 PDF = 检测 + PASSWORD_REQUIRED 明确提示；不做密码输入 | §17 允许；个人归档场景受保护 PDF 显式 Unsupported，绝不绕过 |
 | OCR/编辑/链接层/表单/多媒体 = 明确 Unsupported | §60-62：Reader 不是 Editor；不渲染链接层 = 外链/JS/Launch 自然不触发（安全默认） |
+
+## M8
+
+| 决定 | 理由 |
+| --- | --- |
+| TTS Provider = Web Speech API（speechSynthesis，Chromium→Windows SAPI 本地桥） | 零新依赖/零网络/零 native 部署（local-first §3.1）；真机 PoC 验证语音枚举/中英文/rate/取消全部可用（M8-EXPLORE §1） |
+| 暂停 = 段级暂停（cancel + 段首重读），不用引擎 pause | PoC 证实 `speechSynthesis.paused` 标志不可信且 Windows 引擎 pause 可靠性存在版本差异；§9 最小可靠单位 = 句子；可在 Node 全测 |
+| 定位/高亮 = canonical 偏移段 + ReaderAnchor + CSS Highlight `reverie-tts` | 三格式 canonical 契约（M2/M6/M7）直接复用——不建第二套 ReaderLocation（不变量 3） |
+| Sections = 格式 payload 推导（blocks/章节/页），段落 = 句子 | Reader 决定读什么（§5/§17）；code block 默认跳读（§47） |
+| 控制器 DOM-free + Provider 注入（UMD shim） | 状态机/队列/并发在 Node 完整测试（FakeProvider），第三方 API 只在 tts-provider.js（M8 §12） |
+| 设置存 localStorage（voiceId+rate） | 无独立数据库/无新数据格式（§36/§58）；本地即弃性质 |
+| 选区朗读 = 一次性队列，不滚动不写进度 | §25：朗读选区不得移动 Progress、不产生标注 |
