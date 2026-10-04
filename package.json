@@ -21,6 +21,7 @@
     "smoke:pdf": "node scripts/smoke-pdf.mjs",
     "smoke:tts": "node scripts/smoke-tts.mjs",
     "smoke:epub": "node scripts/smoke-epub.mjs",
+    "smoke:doctor": "node scripts/smoke-doctor.mjs",
     "bench:m3": "node spikes/bench-m3.mjs",
     "bench:m5": "node spikes/bench-m5.mjs"
   },

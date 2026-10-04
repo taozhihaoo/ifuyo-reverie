@@ -173,5 +173,5 @@ test('doctor: duplicate document_id and stale index detected', async () => {
   const first = (await fsp.readdir(srcDir)).filter((d) => !d.startsWith('.'))[0];
   await fsp.cp(path.join(srcDir, first), path.join(srcDir, '77777777-7777-4777-8777-777777777777'), { recursive: true });
   const report = await runDoctor(lib);
-  assert.ok(report.findings.some((f) => f.code === 'duplicate_document_id'));
+  assert.ok(report.findings.some((f) => f.checkId === 'duplicate_document_id')); // M10 findings shape
 });

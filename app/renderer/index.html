@@ -31,6 +31,7 @@
     </div>
     <button id="btn-add-epub" type="button" class="facet">+ 添加 EPUB</button>
     <button id="btn-add-pdf" type="button" class="facet">+ 添加 PDF</button>
+    <button id="btn-doctor" type="button" class="facet">🩺 Doctor 体检</button>
     <h3>标签</h3>
     <div id="tag-facets"></div>
   </nav>
@@ -90,6 +91,15 @@
   <aside id="annotation-panel" hidden>
     <h2>标注</h2>
     <ul id="annotation-list"></ul>
+  </aside>
+  <aside id="doctor-panel" hidden>
+    <h2>Doctor 体检</h2>
+    <p id="doctor-summary"></p>
+    <ul id="doctor-findings"></ul>
+    <div id="doctor-actions">
+      <button id="btn-doctor-repair" type="button" hidden>安全修复（预览后执行）</button>
+      <button id="btn-doctor-report" type="button" hidden>导出报告 (.md)</button>
+    </div>
   </aside>
 </div>
 

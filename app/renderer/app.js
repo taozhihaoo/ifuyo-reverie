@@ -320,6 +320,8 @@ async function showLibrary() {
   els.library.hidden = false;
   searchResults.hidden = true;
   document.getElementById('annotation-panel').hidden = true;
+  const doctorPanelEl = document.getElementById('doctor-panel');
+  if (doctorPanelEl) doctorPanelEl.hidden = true;
   hidePopup();
 
   const { results, total, counts, tag_facets } = await reverie.libraryView({
@@ -1105,6 +1107,100 @@ document.getElementById('btn-back').addEventListener('click', () => {
   showLibrary();
 });
 document.getElementById('btn-export-view-epub').addEventListener('click', () => { exportCurrentViewAsEpub(); });
+
+// ============================================================ doctor (M10)
+const doctorPanel = document.getElementById('doctor-panel');
+const doctorFindings = document.getElementById('doctor-findings');
+const doctorSummary = document.getElementById('doctor-summary');
+const doctorRepairBtn = document.getElementById('btn-doctor-repair');
+const doctorReportBtn = document.getElementById('btn-doctor-report');
+let doctorReport = null;
+
+document.getElementById('btn-doctor').addEventListener('click', async () => {
+  hidePanel();
+  document.getElementById('book-toc').hidden = true;
+  doctorPanel.hidden = false;
+  doctorSummary.textContent = '正在扫描…';
+  doctorFindings.textContent = '';
+  doctorRepairBtn.hidden = true;
+  doctorReportBtn.hidden = true;
+  doctorReport = await reverie.doctorRun();
+  renderDoctorReport(doctorReport);
+});
+
+function renderDoctorReport(report) {
+  const s = report.summary;
+  doctorSummary.textContent = `文档 ${s.documents} · 检查 ${s.checks} · 发现 ${s.findings}`
+    + `（error ${s.bySeverity.error ?? 0} / warning ${s.bySeverity.warning ?? 0} / info ${s.bySeverity.info ?? 0}）`
+    + ` · 可安全修复 ${s.repairable}`;
+  doctorFindings.textContent = '';
+  for (const f of report.findings) {
+    const li = document.createElement('li');
+    li.className = `doctor-finding sev-${f.severity}`;
+    const title = document.createElement('p');
+    title.className = 'doctor-title';
+    title.textContent = `[${f.severity.toUpperCase()}] ${f.problem}`;
+    const meta = document.createElement('p');
+    meta.className = 'doctor-meta';
+    meta.textContent = `${f.checkId}${f.path ? ' · ' + f.path : ''} → ${f.suggestedAction}`;
+    li.append(title, meta);
+    // conditional repairs (M10 §21): annotation record-level recovery, with
+    // preview confirm before any file is rewritten
+    if (f.checkId === 'annotation_corrupt' && f.path) {
+      const repairBtn = document.createElement('button');
+      repairBtn.type = 'button';
+      repairBtn.textContent = '记录级修复';
+      repairBtn.addEventListener('click', async () => {
+        const docDir = f.path;
+        const preview = await reverie.doctorRepairFinding('annotation_corrupt', docDir, true);
+        if (!preview.changed && preview.dryRun) { alert('该文件没有需要修复的行。'); return; }
+        if (!confirm(`记录级修复 ${docDir}/annotations.jsonl：\n\n保留 ${preview.kept} 条有效标注，`
+          + `隔离 ${preview.quarantined} 条坏行（原文件自动备份，坏行可人工还原）。\n执行？`)) return;
+        const result = await reverie.doctorRepairFinding('annotation_corrupt', docDir, false);
+        await rerunDoctorQuiet();
+        alert(`修复完成：保留 ${result.kept} 条，隔离 ${result.quarantined} 条。`);
+      });
+      li.appendChild(repairBtn);
+    }
+    doctorFindings.appendChild(li);
+  }
+  if (report.findings.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = '未发现问题，库是健康的。';
+    doctorFindings.appendChild(li);
+  }
+  doctorRepairBtn.hidden = s.repairable === 0;
+  doctorReportBtn.hidden = report.findings.length === 0 && s.documents === 0;
+}
+
+doctorRepairBtn.addEventListener('click', async () => {
+  const preview = await reverie.doctorRepair(true);
+  const lines = (preview.actions ?? []).map((a) => `• ${a.action} — ${a.target}（影响 ${a.filesAffected} 项，风险：${a.risk}）`);
+  if (lines.length === 0) { alert('没有可执行的修复。'); return; }
+  if (!confirm(`将执行 ${lines.length} 项安全修复（用户源文件 0 改动，自动备份）：\n\n${lines.join('\n')}\n\n执行？`)) return;
+  const result = await reverie.doctorRepair(false);
+  doctorReport = { ...doctorReport, summary: result.afterSummary ?? doctorReport.summary };
+  await rerunDoctorQuiet();
+  alert(`修复完成：${(result.executed ?? []).map((e) => e.action).join('、') || '无'}。`
+    + (result.remainingFindings > 0 ? `\n仍有 ${result.remainingFindings} 项需要人工处理（见列表）。` : '\n库现在是健康的。'));
+});
+
+async function rerunDoctorQuiet() {
+  doctorReport = await reverie.doctorRun();
+  renderDoctorReport(doctorReport);
+}
+
+doctorReportBtn.addEventListener('click', async () => {
+  if (!doctorReport) return;
+  // test hook: CDP smokes cannot drive the native directory dialog
+  const dest = await (window.__reverieExportDirPicker ? window.__reverieExportDirPicker() : reverie.pickExportDir());
+  if (!dest) return;
+  const md = `# Reverie Doctor 报告\n\n- 时间：${doctorReport.generatedAt}\n- 文档：${doctorReport.summary.documents}\n\n`
+    + doctorReport.findings.map((f) => `- [${f.severity.toUpperCase()}] ${f.checkId} — ${f.problem} (${f.path}) → ${f.suggestedAction}`).join('\n');
+  await reverie.writeReport(dest, `DoctorReport-${new Date().toISOString().slice(0, 10)}.md`, md);
+  els.queueHint.textContent = 'Doctor 报告已导出。';
+  setTimeout(() => { els.queueHint.textContent = ''; }, 4000);
+});
 document.getElementById('btn-reindex').addEventListener('click', async () => {
   const { count } = await reverie.libraryReindex();
   const { total } = await reverie.searchRefresh();

@@ -91,3 +91,16 @@
 | 离线优先：已入库文章导出零网络，只读本地 assets | §89/§90：断网可导出是核心验收（测试锁定） |
 | 批量顺序 = 当前视图显示顺序（用户所见即所得）；重复 id 去重；空文档 skipped | §68/§69/§42：稳定、可解释、不静默 |
 | UI 书名 = 默认名直出（无 prompt 对话框） | Electron 渲染层无 window.prompt（真机踩坑）；§64 第一次导出应简单 |
+
+## M10
+
+| 决定 | 理由 |
+| --- | --- |
+| 未来版本用户文件 → 只读保护 + 拒绝写（UnsupportedVersionError） | §26/不变量 6：审计发现 user-state/feeds 版本不匹配会被静默重置（P1 数据丢失）——升级是恢复路径，降级覆写永远不做 |
+| 暂停/清扫/隔离走 `.recovery/`（日志 jsonl + backup-<ts>/ + quarantine-<ts>/） | §22/§82：可识别、可还原、不入索引；不制造独立备份系统 |
+| staging 崩溃残留 = Doctor 可恢复数据（完整→转正/无效→隔离），不是垃圾 | §10：其中可能是真实文章；sweepTmpFiles 零调用是审计发现的 Gap |
+| Doctor v2 findings = {checkId, severity, repairability, ...}，safe/conditional/manual 分级 | §19/§21：Safe 自动、Conditional 带预览确认、Manual 只报告——绝不伪造修复成功 |
+| Doctor 文件系统优先，索引仅作交叉证据 | §95-§97：索引坏/删时 Doctor 必须可用；Repair 永不基于过期索引 |
+| 标注 JSONL 修复 = 记录级（备份→保留好行→隔离坏行→刷新索引） | §80/§81：不整文件丢弃；serializeAnnotation 全对象序列化→未知字段天然保留（§27） |
+| 索引 schema 演进策略 = 重建而非迁移 | §108/§109：派生数据修复成本为零，复杂 DB 迁移无价值 |
+| 不引入 File Watcher | §44：增量刷新 + Doctor/重建入口已覆盖实际需求，不加重力级框架 |

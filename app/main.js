@@ -17,7 +17,7 @@ import { createAnnotationService } from '../src/annotation/service.js';
 import { parseMarkdownBlocks } from '../src/reader/markdown-reader.js';
 import { loadUserState, updateUserState, forgetDocument, userStatePath } from '../src/library/user-state.js';
 import { loadSearchIndex, refreshSearchIndex, invalidateSearchIndex, search, queryLibrary, tagFacets, viewCounts } from '../src/search/search-service.js';
-import { runDoctor } from '../src/library/doctor.js';
+import { runDoctor, repairSafe, repairDoctorFinding } from '../src/library/doctor.js';
 import { addFeedUrl, refreshFeed, refreshAllFeeds, deleteFeedOnly, listFeedsWithCounts, updateFeedMeta } from '../src/feed/feed-service.js';
 import { previewImport, commitImport } from '../src/importexport/import-service.js';
 import { exportDocumentToMarkdown, validateMarkdownExport } from '../src/importexport/export/markdown-exporter.js';
@@ -280,6 +280,17 @@ function registerIpc() {
   });
 
   ipcMain.handle('doctor:run', async () => runDoctor(libraryRoot));
+  ipcMain.handle('doctor:repair', async (_e, { dryRun = false } = {}) => repairSafe(libraryRoot, { dryRun }));
+  ipcMain.handle('doctor:repair-finding', async (_e, { checkId, docDir, dryRun = false } = {}) =>
+    repairDoctorFinding(libraryRoot, { checkId, docDir, dryRun }));
+  ipcMain.handle('report:write', async (_e, { destDir, fileName, content }) => {
+    if (typeof content !== 'string' || content.length > 2 * 1024 * 1024) throw new Error('invalid report');
+    const safe = String(fileName ?? 'DoctorReport.md').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120);
+    await fsp.mkdir(destDir, { recursive: true });
+    const p = path.join(destDir, safe.endsWith('.md') ? safe : safe + '.md');
+    await fsp.writeFile(p, content, 'utf8');
+    return p;
+  });
   ipcMain.handle('dialog:pick-export-dir', async () => {
     const r = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0];

@@ -92,6 +92,15 @@ TTS = Unified Reader Shell 共享能力：Web Speech API（Windows 本地语音�
 真机修复：els.queueHint 缺失（重建索引按钮真机静默失败，M3 遗留）、libraryView 缺 type 投影。
 限制：表格不导出、流式 zip 留技术债、外部 validator 未接入（标准结构+M6 回读背书）。
 
-## M10-M12
+## M10 — Stability / Recovery / Doctor ✅
+
+稳定性与数据恢复：原子写故障语义验证、孤儿 tmp 清扫接通、采集 staging 崩溃恢复
+（完整→转正/无效→隔离区）、**未来版本只读保护**（user-state/feeds 拒绝降级覆写——
+修复两个 P1 数据丢失风险）、标注 JSONL 记录级修复（备份+隔离+好行保留）、
+Doctor v2（11 项检查/findings 分级/可修复性/safe repair 预览+备份+日志+重扫幂等/
+文件系统优先——索引坏也能跑）、库可移植验证。真机：npm run smoke:doctor（10/10）。
+309/309 测试。
+
+## M11-M12
 
 未开始（顺序见总纲领：PDF → TTS → 导出增强 → 稳定性 → 产品化 → 自用 1.0）。
