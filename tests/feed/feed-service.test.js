@@ -128,7 +128,7 @@ test('refresh idempotency: second refresh creates nothing new (M4 §115)', async
   assert.equal(await countArticles(lib), before);
 });
 
-test.only('same guid twice in one payload -> one article (M4 §108)', async () => {
+test('same guid twice in one payload -> one article (M4 §108)', async () => {
   const lib = await setup();
   const res = await addFeedUrl(lib, `${origin}/feed-dup.xml`);
   assert.equal(res.refresh.status, 'success');

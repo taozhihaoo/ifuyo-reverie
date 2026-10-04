@@ -69,6 +69,7 @@ export async function scanLibrary(libraryRoot) {
           published_at: meta.published_at ?? null,
           language: meta.language ?? null,
           source_type: meta.source_type ?? null,
+          import_key: meta.provenance?.import_key ?? null,
           feed_id: meta.feed_id ?? null,
           feed_title: meta.feed_title ?? null,
           external_id: meta.external_id ?? null,

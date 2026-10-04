@@ -111,6 +111,7 @@ export async function buildSearchableDocument(libraryRoot, entry, userState) {
       captured_at: entry.captured_at ?? entry.created_at ?? null,
       content_hash: entry.content_hash,
       source_type: entry.source_type ?? null,
+      import_key: entry.import_key ?? null,
       feed_id: entry.feed_id ?? null,
       feed_title: entry.feed_title ?? null,
       external_id: entry.external_id ?? null,

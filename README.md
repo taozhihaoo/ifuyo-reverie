@@ -40,6 +40,7 @@ M0 不做产品功能，只回答一个问题：
 | [docs/USER-STATE.md](docs/USER-STATE.md) | 用户状态：read/favorite/inbox/tags/last_opened |
 | [docs/SEARCH-FORMAT.md](docs/SEARCH-FORMAT.md) | 派生搜索索引格式 |
 | [docs/PERF.md](docs/PERF.md) | 性能基准（真实测量） |
+| [docs/M5-STATUS.md](docs/M5-STATUS.md) | M5 完成报告（导入导出与每日回顾） |
 | [docs/M2-STATUS.md](docs/M2-STATUS.md) | M2 完成报告（Annotation Core） |
 | [docs/ANNOTATIONS.md](docs/ANNOTATIONS.md) | 标注模型、生命周期与 Reader 集成 |
 | [docs/ANNOTATION-FORMAT.md](docs/ANNOTATION-FORMAT.md) | annotations.jsonl 格式规范 |
