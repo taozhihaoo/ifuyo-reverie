@@ -46,8 +46,8 @@ export function validateMeta(meta) {
     const s = meta.source;
     if (typeof s !== 'object' || s === null) errors.push('source must be an object when present');
     else {
-      if (typeof s.original_url !== 'string' || s.original_url.length === 0) errors.push('source.original_url is required in source block');
-      if (!isIso(s.capture_time)) errors.push('source.capture_time must be ISO 8601 UTC');
+      if (s.original_url !== undefined && (typeof s.original_url !== 'string' || s.original_url.length === 0)) errors.push('source.original_url must be a string when present');
+      if (s.capture_time !== undefined && !isIso(s.capture_time)) errors.push('source.capture_time must be ISO 8601 UTC');
       const ex = s.extractor;
       if (typeof ex !== 'object' || ex === null || typeof ex.name !== 'string' || typeof ex.version !== 'string') {
         errors.push('source.extractor must be { name, version }');

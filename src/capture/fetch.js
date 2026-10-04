@@ -17,6 +17,7 @@ export class FetchError extends Error {
   constructor(error_code, message) {
     super(message);
     this.error_code = error_code;
+    this.code = error_code; // both spellings: pipeline reads error_code, feed/service read code
   }
 }
 
@@ -45,10 +46,99 @@ export function decodeBody(buffer, contentType = '') {
 }
 
 /**
+ * Private-network policy (M4 §57): localhost / loopback / RFC1918 /
+ * link-local / unique-local hosts are refused by default. Hostname-level
+ * check (DNS-resolved IP pinning is a known limitation, see NETWORK.md).
+ */
+export function assertPublicHost(hostname, { allowPrivateNetwork = process.env.REVERIE_ALLOW_PRIVATE_NETWORK === '1' } = {}) {
+  // explicit policy (M4 §57): allowPrivateNetwork === true disables the
+  // check entirely; an ARRAY is an explicit host allowlist (test servers /
+  // user-approved LAN feeds); default (false) blocks private ranges.
+  if (Array.isArray(allowPrivateNetwork) && allowPrivateNetwork.includes(hostname.toLowerCase())) return;
+  if (allowPrivateNetwork === true) return;
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) {
+    throw new FetchError(ERROR_CODES.SECURITY_REJECTED, `private host not allowed: ${h}`);
+  }
+  if (/^127\./.test(h) || h === '::1' || h === '0:0:0:0:0:0:0:1') {
+    throw new FetchError(ERROR_CODES.SECURITY_REJECTED, `loopback not allowed: ${h}`);
+  }
+  if (/^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)) {
+    throw new FetchError(ERROR_CODES.SECURITY_REJECTED, `private address not allowed: ${h}`);
+  }
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) {
+    throw new FetchError(ERROR_CODES.SECURITY_REJECTED, `private address not allowed: ${h}`);
+  }
+  if (/^f[cd][0-9a-f]{2}:/i.test(h) || /^fe80:/i.test(h)) {
+    throw new FetchError(ERROR_CODES.SECURITY_REJECTED, `private IPv6 not allowed: ${h}`);
+  }
+}
+
+/**
+ * Generic binary-safe fetch (shared HTTP infrastructure, M4 §53): http(s)
+ * only, per-hop URL policy incl. private-network guard, redirect cap,
+ * timeout, size cap, conditional-request support (ETag / Last-Modified).
+ * Returns { finalUrl, status, notModified, contentType, etag, lastModified, buffer }.
+ */
+export async function fetchUrl(url, {
+  limits = FETCH_LIMITS,
+  headers = {},
+  signal = null,
+  allowPrivateNetwork = process.env.REVERIE_ALLOW_PRIVATE_NETWORK === '1',
+} = {}) {
+  let current = url;
+  for (let redirects = 0; redirects <= limits.maxRedirects; redirects++) {
+    assertHttp(current);
+    assertPublicHost(new URL(current).hostname, { allowPrivateNetwork });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
+    if (signal) signal.addEventListener('abort', () => controller.abort(), { once: true });
+    let res;
+    try {
+      res = await fetch(current, { redirect: 'manual', signal: controller.signal, headers });
+    } catch (err) {
+      if (signal?.aborted) throw new FetchError(ERROR_CODES.NETWORK_ERROR, 'fetch cancelled');
+      throw new FetchError(ERROR_CODES.NETWORK_ERROR, `fetch failed: ${err?.cause?.message ?? err.message}`);
+    } finally {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener('abort', () => controller.abort());
+    }
+    if (res.status === 304) {
+      return { finalUrl: current, status: 304, notModified: true, contentType: null, etag: res.headers.get('etag'), lastModified: res.headers.get('last-modified'), buffer: null };
+    }
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get('location');
+      if (!location) throw new FetchError(ERROR_CODES.NETWORK_ERROR, `redirect without location (HTTP ${res.status})`);
+      const next = new URL(location, current).href;
+      current = next; // per-hop policy re-runs at loop top (scheme + host, M4 §55)
+      continue;
+    }
+    if (!res.ok) {
+      throw new FetchError(ERROR_CODES.NETWORK_ERROR, `HTTP ${res.status} for ${current}`);
+    }
+    const contentType = res.headers.get('content-type') ?? '';
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length > limits.maxBytes) {
+      throw new FetchError(ERROR_CODES.NETWORK_ERROR, `response exceeds ${limits.maxBytes} bytes`);
+    }
+    return {
+      finalUrl: current,
+      status: res.status,
+      notModified: false,
+      contentType,
+      etag: res.headers.get('etag'),
+      lastModified: res.headers.get('last-modified'),
+      buffer,
+    };
+  }
+  throw new FetchError(ERROR_CODES.NETWORK_ERROR, `too many redirects (> ${limits.maxRedirects})`);
+}
+
+/**
  * Fetch an HTML page. Returns { finalUrl, status, contentType, html }.
  * Throws FetchError with a stable error code on any violation.
  */
-export async function fetchPage(url, limits = FETCH_LIMITS) {
+export async function fetchPage(url, limits = FETCH_LIMITS, { allowPrivateNetwork = process.env.REVERIE_ALLOW_PRIVATE_NETWORK === '1' } = {}) {
   assertHttp(url);
   let current = url;
   for (let redirects = 0; redirects <= limits.maxRedirects; redirects++) {
@@ -62,10 +152,12 @@ export async function fetchPage(url, limits = FETCH_LIMITS) {
         headers: { 'user-agent': 'ReverieCapture/0.1 (+personal archive; like a read-later client)' },
       });
     } catch (err) {
+      if (signal?.aborted) throw new FetchError(ERROR_CODES.NETWORK_ERROR, 'fetch cancelled');
       throw new FetchError(ERROR_CODES.NETWORK_ERROR, `fetch failed: ${err?.cause?.message ?? err.message}`);
     } finally {
       clearTimeout(timer);
     }
+    assertPublicHost(new URL(current).hostname); // revalidate after redirects (M4 §57)
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location');
       if (!location) throw new FetchError(ERROR_CODES.NETWORK_ERROR, `redirect without location (HTTP ${res.status})`);
