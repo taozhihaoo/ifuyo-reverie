@@ -80,6 +80,12 @@ Reverie Library/
 | 可选字段 | 缺失即**省略字段**——禁止写 `null` / 空串（校验器会拒绝，M1 起强制） |
 | 校验 | `content_hash` = `sha256-<hex>`，对正文文件字节计算 |
 
+### Library 内的应用状态文件（M3/M4）
+
+- `<Library>/user-state.json`：read/favorite/inbox/tags/last_opened_at（用户状态，M3）。
+- `<Library>/feeds.json`：RSS/Atom 订阅关系（用户资料，M4）。
+- 两者均为用户数据（原子写入），不属于派生索引；扫描器忽略它们（非目录/非文档）。
+
 ---
 
 ## 3. meta.json
@@ -123,6 +129,9 @@ Reverie Library/
 | `description` | ❌ | 摘要（提取器提供时） |
 | `site_name` | ❌ | 站点名（提取器提供时） |
 | `capture_warnings` | ❌ | 采集降级警告数组，如 `[{code:"asset_download_failed", url, error_code}]`；文章本身有效 |
+| `source_type` | ❌ | 来源类型：`web`（隐含，缺省）\| `feed`；feed 文章另见下 |
+| `feed_id` / `feed_title` / `external_id` / `external_id_type` / `content_provenance` | ❌ | feed 来源文章的订阅关系与身份字段：feed_id=订阅源 id；external_id=RSS guid/Atom id（external_id_type: guid-permalink/guid/atom-id）；content_provenance=feed-content/feed-summary。**feed_id 是来源关系，不是 document_id 的替代** |
+| `categories` | ❌ | Feed 分类（字符串数组） |
 | `created_at` | ✅ | 目录创建时间 |
 | `captured_at` | ❌ | 网页捕获时间（web 来源） |
 | `updated_at` | ✅ | 元数据最后一次修改时间 |

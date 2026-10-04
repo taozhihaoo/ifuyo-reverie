@@ -1,0 +1,52 @@
+# PROGRESS — 里程碑进度
+
+> 按 M4 §141 要求：核对清单 + Known Limitations + Deferred。状态以测试证据为准（npm test 200/200）。
+
+## M0 — Foundation & Risk Spikes ✅
+
+风险验证（提取/标注/EPUB/PDF/格式/安全）全部完成，见 docs/M0-STATUS.md。
+
+## M1 — Web Capture ✅
+
+保存→提取→归档→阅读闭环；原子持久化；Queue；Native Messaging Host（浏览器端 E2E 待用户注册）。
+
+## M2 — Annotation Core ✅
+
+标注模型/Anchor/Resolver/orphaned/修复/面板；canonical text 契约；500 标注性能实测。
+
+## M3 — Search & Library ✅
+
+七字段搜索 + 过滤 + 视图 + 用户状态 + 可重建索引 + Doctor；1,000 篇 p95=3ms。
+
+## M4 — RSS / Feed
+
+| 组件 | 状态 |
+| --- | --- |
+| RSS 2.0 parser | ✅（title/link/description/guid+isPermaLink/pubDate/author/category + content:encoded + dc:creator） |
+| Atom 1.0 parser | ✅（id/title/updated/published/author/link rel 优先级/summary/content[type=text,html]/category） |
+| Feed Storage | ✅（<Library>/feeds.json，原子写入，删索引可恢复） |
+| Fetcher | ✅（复用 capture/fetch.js；条件请求 304；重定向限 5 跳逐跳校验；20s 超时；5MB 上限；AbortSignal 取消） |
+| Retry | ✅（仅 NETWORK_ERROR ×2；4xx/安全拒绝/解析失败不重试） |
+| Dedup | ✅（feed+external_id > feed+canonical URL > feed+normalized URL；同身份内容变化=原子更新） |
+| RSS Article → Document/Library | ✅（type=article + source_type=feed + feed 关系字段；source/feed-item.json 留档） |
+| Inbox / Read State | ✅（复用 M3：新条目 unread+inbox；刷新不碰用户状态——§109 回归测试） |
+| Search | ✅（自动进入 M3 索引；七字段可搜；orphaned 标注仍可搜索） |
+| Reader | ✅（复用 Reader Shell；Feed 来源元信息 + Open Original 走系统浏览器） |
+| Annotation | ✅（高亮/笔记走 M2 核心，刷新后重定位） |
+| Security | ✅（DOCTYPE 拒绝=XXE/实体炸弹防线；HTML 消毒；URL scheme 白名单；私有网段默认拒绝；5MB 上限；fuzz 无 crash） |
+| Tests | ✅（34 例新增：parser 13 / feed-service 10 / network-security 11） |
+
+### Known Limitations
+
+- 私有网段校验按 hostname，未做 DNS 解析后 IP 校验（SSRF 防线之一，非全部）。
+- 部分损坏 Feed（Item B 损坏）：XML 级整体失败（记录明确错误），不做条目级跳过。
+- 浏览器端 Native Messaging E2E 与 GUI 自动化未执行（人工清单在 CAPTURE.md §7）。
+
+### Deferred
+
+OPML 导入导出、Podcast、自动定时刷新（Scheduler）、网页全文自动抓取、
+JSON Feed、RSS 条目版本历史（content_hash+updated_at 已为 M10 留接口）。
+
+## M5-M12
+
+未开始（顺序见 docs/M3-STATUS.md 与总纲领）。
