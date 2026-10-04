@@ -49,6 +49,22 @@ export async function scanLibrary(libraryRoot) {
             bookBody = session.chapters.map((c) => c.text).join('\n\n').slice(0, 200 * 1024);
           } catch { /* broken book -> indexed without body */ }
         }
+        let pdfBody = null;
+        let pdfPages = null;
+        if (meta.type === "pdf") {
+          try {
+            const { openPdfDocument, closePdfDocument, extractPdfPages, PDF_LIMITS } = await import("../reader/pdf-reader-core.js");
+            const doc = await openPdfDocument(path.join(docDir, "document.pdf"));
+            try {
+              const pages = await extractPdfPages(doc);
+              pdfPages = pages.length;
+              const joined = pages.map((p) => p.text).join('\n');
+              pdfBody = joined.length > 0 ? joined.slice(0, PDF_LIMITS.maxIndexBodyChars) : null;
+            } finally {
+              await closePdfDocument(doc);
+            }
+          } catch { /* broken pdf -> indexed without body (M7 §57) */ }
+        }
         const { annotations, invalid } = await readAnnotationsFile(path.join(docDir, 'annotations.jsonl'));
         if (invalid.length > 0) {
           errors.push({ path: docDir, reason: `${invalid.length} unparsable annotation line(s)` });
@@ -83,6 +99,8 @@ export async function scanLibrary(libraryRoot) {
           feed_title: meta.feed_title ?? null,
           external_id: meta.external_id ?? null,
           book_body: bookBody,
+          pdf_body: pdfBody,
+          page_count: meta.page_count ?? pdfPages ?? null,
           original_url: meta.source?.original_url ?? null,
           canonical_url: meta.source?.canonical_url ?? null,
           content_hash: meta.source?.content_hash ?? null,

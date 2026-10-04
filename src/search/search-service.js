@@ -95,6 +95,9 @@ export async function buildSearchableDocument(libraryRoot, entry, userState) {
       if (entry.book_body) {
         // type=book: scan extracted chapter text from book.epub
         body = entry.book_body;
+      } else if (entry.pdf_body) {
+        // type=pdf: scan extracted page text from document.pdf (M7)
+        body = entry.pdf_body;
       } else {
         const raw = await fsp.readFile(path.join(docDir, 'article.md'), 'utf8');
         body = parseMarkdownBlocks(raw).canonicalText.slice(0, BODY_INDEX_LIMIT);

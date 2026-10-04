@@ -24,8 +24,6 @@ export async function addEpubBook(libraryRoot, sourceEpubPath, {
     document_id: documentId,
     type: 'book',
     title: title || session.metadata.title || path.basename(sourceEpubPath, '.epub'),
-    author: author || session.metadata.author || null,
-    language: session.metadata.language || null,
     created_at: now,
     captured_at: now,
     updated_at: now,
@@ -36,6 +34,9 @@ export async function addEpubBook(libraryRoot, sourceEpubPath, {
       content_hash: contentHash,
     },
   };
+  // optional fields are OMITTED when absent, never null (meta validator, M1)
+  if (author || session.metadata.author) meta.author = author || session.metadata.author;
+  if (session.metadata.language) meta.language = session.metadata.language;
   if (meta.title === null || meta.title === '') meta.title = '未命名图书';
 
   await fsp.mkdir(docDir, { recursive: true });

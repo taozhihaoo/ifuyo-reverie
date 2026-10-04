@@ -123,11 +123,20 @@ export async function updateUserState(documentId, patch, { now = new Date().toIS
   if (patch.tags !== undefined) next.tags = normalizeTags(patch.tags);
   if (patch.last_opened_at !== undefined) next.last_opened_at = patch.last_opened_at;
   if (patch.last_location !== undefined) {
-    // M6 reading position: { chapter_index, scroll_ratio } — free-form but
-    // validated minimally; belongs to the user, never into the book file.
+    // M6/M7 reading position: { chapter_index | page_index, scroll_ratio } —
+    // free-form but validated minimally; belongs to the user, never into the
+    // source file. Books use chapter_index, PDFs use page_index (M7 §30:
+    // internal index is identity, display labels are UI-only).
     const loc = patch.last_location;
-    if (loc && typeof loc === 'object' && Number.isInteger(loc.chapter_index) && loc.chapter_index >= 0) {
-      next.last_location = { chapter_index: loc.chapter_index, scroll_ratio: Number(loc.scroll_ratio ?? 0) || 0 };
+    const idx = loc && typeof loc === 'object'
+      ? (Number.isInteger(loc.chapter_index) && loc.chapter_index >= 0
+          ? { chapter_index: loc.chapter_index }
+          : (Number.isInteger(loc.page_index) && loc.page_index >= 0
+              ? { page_index: loc.page_index }
+              : null))
+      : null;
+    if (idx) {
+      next.last_location = { ...idx, scroll_ratio: Number(loc.scroll_ratio ?? 0) || 0 };
     }
   }
   next.updated_at = now;
