@@ -7,6 +7,8 @@ import http from 'node:http';
 import { createServer } from 'node:http';
 import { runCapture } from '../../src/capture/pipeline.js';
 import { createCaptureRequest, RESPONSE_STATUSES } from '../../src/capture/protocol.js';
+// local test HTTP servers live on loopback — explicit test policy (M4 §57)
+process.env.REVERIE_ALLOW_PRIVATE_NETWORK = '1';
 
 const tmpdir = () => fsp.mkdtemp(path.join(os.tmpdir(), 'reverie-dup-'));
 

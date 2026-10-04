@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<rss version="2.0"><channel><title>Invalid Date</title>
+<item><title>日期非法的条目</title><link>https://id.example/1</link><guid>id-1</guid><pubDate>Oct 99, 2026 nonsense</pubDate></item>
+</channel></rss>

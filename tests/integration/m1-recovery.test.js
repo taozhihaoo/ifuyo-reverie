@@ -12,6 +12,8 @@ import { enqueue, recoverOnStartup, listJobs } from '../../src/capture/queue.js'
 import { processQueue } from '../../src/capture/worker.js';
 import { loadIndex, rebuildIndex, loadReadState, setReadState } from '../../src/library/index.js';
 import { captureToLibrary } from '../../src/library/persist.js';
+// local test HTTP servers live on loopback — explicit test policy (M4 §57)
+process.env.REVERIE_ALLOW_PRIVATE_NETWORK = '1';
 
 const tmpdir = () => fsp.mkdtemp(path.join(os.tmpdir(), 'reverie-rt-'));
 const ARTICLE_HTML = `<html><head><title>往返测试</title></head><body><article>

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 import { runCapture, canonicalizeForDedupe } from '../../src/capture/pipeline.js';
 import { createCaptureRequest, ERROR_CODES, RESPONSE_STATUSES } from '../../src/capture/protocol.js';
+// local test HTTP servers live on loopback — explicit test policy (M4 §57)
+process.env.REVERIE_ALLOW_PRIVATE_NETWORK = '1';
 
 
 const corpusDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'extraction', 'corpus');

@@ -18,6 +18,7 @@ import { parseMarkdownBlocks } from '../src/reader/markdown-reader.js';
 import { loadUserState, updateUserState, forgetDocument, userStatePath } from '../src/library/user-state.js';
 import { loadSearchIndex, refreshSearchIndex, invalidateSearchIndex, search, queryLibrary, tagFacets, viewCounts } from '../src/search/search-service.js';
 import { runDoctor } from '../src/library/doctor.js';
+import { addFeedUrl, refreshFeed, refreshAllFeeds, deleteFeedOnly, listFeedsWithCounts, updateFeedMeta } from '../src/feed/feed-service.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const libraryRoot = getLibraryRoot();
@@ -182,6 +183,45 @@ function registerIpc() {
   });
 
   ipcMain.handle('doctor:run', async () => runDoctor(libraryRoot));
+
+  // ---- M4: feeds ----
+  ipcMain.handle('feeds:list', async () => listFeedsWithCounts(libraryRoot));
+  ipcMain.handle('feeds:add', async (_e, { url }) => {
+    const result = await addFeedUrl(libraryRoot, url);
+    invalidateSearchIndex();
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return { duplicate: result.duplicate, feed_id: result.feed?.feed_id ?? null, refresh: result.refresh ?? null };
+  });
+  ipcMain.handle('feeds:refresh', async (_e, { feedId }) => {
+    const r = await refreshFeed(libraryRoot, feedId);
+    invalidateSearchIndex();
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return r;
+  });
+  ipcMain.handle('feeds:refresh-all', async () => {
+    const summary = await refreshAllFeeds(libraryRoot);
+    broadcast('library:changed');
+    return summary;
+  });
+  ipcMain.handle('feeds:set-enabled', async (_e, { feedId, enabled }) => {
+    const feed = await updateFeedMeta(libraryRoot, feedId, { enabled });
+    broadcast('library:changed');
+    return feed;
+  });
+  ipcMain.handle('feeds:rename', async (_e, { feedId, customTitle }) => {
+    const feed = await updateFeedMeta(libraryRoot, feedId, { custom_title: customTitle || null });
+    broadcast('library:changed');
+    return feed;
+  });
+  ipcMain.handle('feeds:delete', async (_e, { feedId }) => {
+    await deleteFeedOnly(libraryRoot, feedId); // articles REMAIN (M4 §49)
+    invalidateSearchIndex();
+    await refreshSearchIndex(libraryRoot).catch(() => {});
+    broadcast('library:changed');
+    return { ok: true };
+  });
 
   ipcMain.handle('article:read-state', async (_e, { documentId, state }) => {
     await setReadState(documentId, state);

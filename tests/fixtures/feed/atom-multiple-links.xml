@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Multi Link</title>
+<entry><title>多链接条目</title><id>urn:uuid:ml-1</id>
+<link rel="self" href="https://ml.example/self.json"/>
+<link rel="alternate" type="text/html" href="https://ml.example/article"/>
+<link rel="enclosure" type="audio/mpeg" href="https://ml.example/audio.mp3"/>
+<link href="https://ml.example/fallback"/>
+</entry>
+</feed>

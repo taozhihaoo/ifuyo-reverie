@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>HTML Content</title>
+<entry><title>HTML 内容条目</title><id>urn:uuid:hc-1</id>
+<summary>仅摘要</summary>
+<content type="html">&lt;p&gt;这是 &lt;em&gt;HTML 转义&lt;/em&gt; 的正文。&lt;/p&gt;</content>
+</entry>
+</feed>

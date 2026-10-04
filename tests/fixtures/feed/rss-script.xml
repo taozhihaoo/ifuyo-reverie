@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Evil Feed</title>
+<item><title>恶意脚本条目</title><link>javascript:alert(1)</link><guid>evil-1</guid>
+<content:encoded><![CDATA[<p>正常文字</p><script>alert(1)</script><img src=x onerror=alert(2)><iframe src="https://evil.example"></iframe><a href="javascript:alert(3)">bad link</a>]]></content:encoded></item>
+</channel></rss>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Full Atom Feed</title>
+<link href="https://atom.example/"/>
+<link rel="self" href="https://atom.example/feed.xml"/>
+<subtitle>Atom 完整样例</subtitle>
+<author><name>Atom 作者</name></author>
+<id>urn:uuid:feed-atom-1</id>
+<updated>2026-10-05T00:00:00Z</updated>
+<entry>
+<title>Atom 条目一</title>
+<id>urn:uuid:entry-1</id>
+<updated>2026-10-05T01:00:00Z</updated>
+<published>2026-10-04T01:00:00Z</published>
+<link rel="alternate" type="text/html" href="https://atom.example/entries/1"/>
+<link rel="self" href="https://atom.example/entries/1.json"/>
+<author><name>条目作者</name></author>
+<summary>条目摘要</summary>
+<content type="html">&lt;p&gt;Atom 条目的 &lt;strong&gt;HTML 正文&lt;/strong&gt;。&lt;/p&gt;</content>
+<category term="技术"/>
+<category term="Atom"/>
+</entry>
+</feed>

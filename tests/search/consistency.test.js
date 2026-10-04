@@ -11,6 +11,8 @@ import { rebuildSearchIndex, refreshSearchIndex, search, queryLibrary } from '..
 import { writeMeta } from '../../src/core/meta.js';
 import { writeFileAtomic } from '../../src/core/atomic-write.js';
 import { newId } from '../../src/core/ids.js';
+// local test HTTP servers live on loopback — explicit test policy (M4 §57)
+process.env.REVERIE_ALLOW_PRIVATE_NETWORK = '1';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Missing ID</title>
+<entry><title>缺少 id 的条目</title><link href="https://mi.example/1"/></entry>
+</feed>

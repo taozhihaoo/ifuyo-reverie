@@ -197,3 +197,25 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 }
 .match-snippet { color: #55504a; overflow: hidden; text-overflow: ellipsis; }
 .match-snippet mark { background: rgba(255, 213, 79, 0.6); padding: 0 1px; }
+
+/* ---- M4: feeds ---- */
+#feed-list { display: flex; flex-direction: column; gap: 2px; }
+.feed-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.feed-row:hover { background: #f1eee8; }
+.feed-row.active { background: #eae5dc; }
+.feed-row.paused .feed-name { color: var(--muted); }
+.feed-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-actions { display: none; gap: 2px; }
+.feed-row:hover .feed-actions { display: flex; }
+.feed-action { border: none; background: none; padding: 0 3px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.feed-action:hover { color: var(--accent); }
+#feed-add { margin-top: 6px; }
+#feed-url {
+  width: 100%; font: inherit; font-size: 12px;
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 8px; background: #fff;
+}
+#feed-url:focus { outline: none; border-color: var(--accent); }

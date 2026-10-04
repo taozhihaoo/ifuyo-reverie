@@ -149,6 +149,63 @@ const VIEW_EMPTY = {
   recent: '最近没有打开过文章。',
 };
 
+let activeFeedId = null;
+
+async function renderFeedList() {
+  const box = document.getElementById('feed-list');
+  box.textContent = '';
+  let feeds = [];
+  try { feeds = await reverie.feedsList(); } catch { return; }
+  for (const feed of feeds) {
+    const row = document.createElement('div');
+    row.className = 'feed-row' + (feed.feed_id === activeFeedId ? ' active' : '') + (feed.enabled ? '' : ' paused');
+    row.title = feed.original_url;
+    const name = document.createElement('span');
+    name.className = 'feed-name';
+    name.textContent = feed.display_title;
+    const unread = document.createElement('span');
+    unread.className = 'count';
+    unread.textContent = feed.unread_count > 0 ? String(feed.unread_count) : '';
+    if (!feed.enabled) {
+      const paused = document.createElement('span');
+      paused.className = 'count';
+      paused.textContent = '⏸';
+      row.appendChild(paused);
+    }
+    row.append(name, unread);
+    row.addEventListener('click', () => {
+      activeFeedId = feed.feed_id === activeFeedId ? null : feed.feed_id;
+      showLibrary();
+    });
+    const actions = document.createElement('span');
+    actions.className = 'feed-actions';
+    for (const [label, title, fn] of [
+      ['↻', '刷新此订阅源', () => refreshFeedById(feed.feed_id)],
+      [feed.enabled ? '⏸' : '▶', feed.enabled ? '暂停订阅' : '恢复订阅', () => reverie.feedsSetEnabled(feed.feed_id, !feed.enabled).then(showLibrary)],
+      ['×', '删除订阅（保留已有文章）', () => {
+        if (confirm(`删除订阅「${feed.display_title}」？\n已保存的文章会保留在资料库中。`)) {
+          reverie.feedsDelete(feed.feed_id).then(() => { if (activeFeedId === feed.feed_id) activeFeedId = null; showLibrary(); });
+        }
+      }],
+    ]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'feed-action';
+      b.textContent = label;
+      b.title = title;
+      b.addEventListener('click', (ev) => { ev.stopPropagation(); fn(); });
+      actions.appendChild(b);
+    }
+    row.appendChild(actions);
+    box.appendChild(row);
+  }
+}
+
+async function refreshFeedById(feedId) {
+  await reverie.feedsRefresh(feedId);
+  showLibrary();
+}
+
 async function showLibrary() {
   els.reader.hidden = true;
   els.library.hidden = false;
@@ -158,6 +215,7 @@ async function showLibrary() {
 
   const { results, total, counts, tag_facets } = await reverie.libraryView({
     view: currentView, query: searchInput.value.trim(), tags: currentTags,
+    feedId: activeFeedId ?? undefined,
     sort: currentView === 'recent' ? 'recent-opened' : 'captured',
   });
 
@@ -181,10 +239,13 @@ async function showLibrary() {
     });
     tagBox.appendChild(chip);
   }
+  await renderFeedList();
 
   els.list.textContent = '';
   els.empty.hidden = results.length > 0;
-  els.empty.textContent = VIEW_EMPTY[currentView] ?? VIEW_EMPTY.all;
+  els.empty.textContent = activeFeedId
+    ? '该订阅源下暂无文章，点击侧栏订阅源的刷新按钮获取。'
+    : (VIEW_EMPTY[currentView] ?? VIEW_EMPTY.all);
   if (total > results.length) {
     const more = document.createElement('li');
     more.className = 'load-more';
@@ -547,6 +608,16 @@ async function openArticle(documentId) {
   renderPanel(loaded.annotations);
   requestAnimationFrame(() => applyHighlights(loaded.annotations));
 
+  // Open Original for feed-sourced articles (M4 §129)
+  const originalUrl = loaded.meta.source?.original_url;
+  if (originalUrl && /^https?:/.test(originalUrl)) {
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.textContent = '打开原文 ↗';
+    openBtn.addEventListener('click', () => reverie.openExternal(originalUrl));
+    els.meta.prepend(openBtn, document.createTextNode(' '));
+  }
+
   const entry = (await reverie.libraryList()).entries.find((e) => e.document_id === documentId);
   if (entry?.read_state !== 'read') await reverie.articleReadState(documentId, 'read');
   window.scrollTo(0, 0);
@@ -588,6 +659,7 @@ document.addEventListener('keydown', (ev) => {
 for (const b of document.querySelectorAll('[data-view]')) {
   b.addEventListener('click', () => {
     currentView = b.dataset.view;
+    activeFeedId = null;
     document.querySelectorAll('[data-view]').forEach((x) => x.classList.toggle('active', x === b));
     showLibrary();
   });

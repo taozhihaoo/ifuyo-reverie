@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+<title>RSS Full Feed</title>
+<link>https://example.com/</link>
+<description>完整字段的 RSS 2.0 样例</description>
+<language>zh-CN</language>
+<item>
+<title>第一篇：全文条目</title>
+<link>https://example.com/posts/1</link>
+<guid isPermaLink="false">urn:uuid:11111111-1111-4111-8111-111111111111</guid>
+<pubDate>Mon, 05 Oct 2026 08:00:00 GMT</pubDate>
+<author>author@example.com (作者甲)</author>
+<category>技术</category>
+<category>RSS</category>
+<description>第一篇的摘要</description>
+<content:encoded><![CDATA[<p>第一篇的<strong>完整正文</strong>，包含 <a href="https://example.com/link">链接</a>。</p>]]></content:encoded>
+</item>
+<item>
+<title>第二篇：dc:creator 作者</title>
+<link>https://example.com/posts/2</link>
+<guid isPermaLink="false">urn:uuid:22222222-2222-4222-8222-222222222222</guid>
+<pubDate>Tue, 06 Oct 2026 09:30:00 +0800</pubDate>
+<dc:creator>作者乙</dc:creator>
+<description>第二篇的摘要</description>
+<content:encoded><![CDATA[<p>第二篇正文。</p>]]></content:encoded>
+</item>
+</channel>
+</rss>

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Minimal Atom</title>
+<entry><title>只有标题的 Atom 条目</title><id>urn:uuid:aaaaaaaa-1111-4aaa-8aaa-111111111111</id></entry>
+</feed>

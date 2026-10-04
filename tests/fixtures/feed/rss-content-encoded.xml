@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>CE Feed</title>
+<item><title>content 与 description 并存</title><link>https://ce.example/1</link><guid>ce-1</guid>
+<description>这只是摘要，不是全文</description>
+<content:encoded><![CDATA[<p>这是 content:encoded 的完整正文。</p>]]></content:encoded></item>
+<item><title>仅有 description</title><link>https://ce.example/2</link><guid>ce-2</guid>
+<description>只有摘要的第二篇。</description></item>
+</channel></rss>
