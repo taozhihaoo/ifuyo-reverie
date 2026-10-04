@@ -566,6 +566,7 @@ async function openSearchMatch({ documentId, match }) {
     }
     navigateTo(annotation);
   } else if (match.type === 'body' && match.term) {
+    globalThis.ReverieTtsView?.stopForNavigation(); // M8 §29
     if (currentDoc.type === 'pdf') {
       // M7 §97: global search → open PDF at the page holding the match.
       // Locate via canonical (DOM text may not be built yet for that page).
@@ -615,8 +616,11 @@ document.getElementById('reader-content').addEventListener('mouseup', () => {
   popup.style.top = `${Math.max(8, rect.bottom + window.scrollY + 6)}px`;
   const btnHighlight = document.getElementById('popup-highlight');
   const btnRepair = document.getElementById('popup-repair');
+  const btnRead = document.getElementById('popup-read');
+  window.__reverieSelectionParts = parts; // M8: 朗读所选 reads from here
   btnRepair.hidden = repairTarget === null;
   btnHighlight.hidden = repairTarget !== null;
+  btnRead.hidden = repairTarget !== null;
   btnHighlight.onclick = async () => {
     try { await reverie.annotationCreate(currentDoc.documentId, parts, ''); }
     catch (err) { console.error('create failed:', err.message); }
@@ -707,6 +711,7 @@ async function removeAnnotation(annotationId) {
 }
 
 function navigateTo(a) {
+  globalThis.ReverieTtsView?.stopForNavigation(); // M8 §29: 跳转中断朗读
   if (a.status !== 'resolved' || !a.locator?.position) return;
   const range = ReaderAnchor.rangeForOffsets(document.getElementById('reader-content'), a.locator.position.start, a.locator.position.end);
   flashRange(range);
@@ -766,6 +771,8 @@ async function openArticle(documentId) {
   document.getElementById('btn-bookmark').hidden = !(loaded.type === 'book' || loaded.type === 'pdf');
   renderPanel(loaded.annotations);
   requestAnimationFrame(() => applyHighlights(loaded.annotations));
+  // M8: TTS follows the Reader — availability hides/shows the toolbar group
+  globalThis.ReverieTtsView?.open(loaded, els.content);
 
   const entry = (await reverie.libraryList()).entries.find((e) => e.document_id === documentId);
   if (entry?.read_state !== "read") await reverie.articleReadState(documentId, "read");
@@ -807,6 +814,7 @@ function buildBookToc(loaded) {
           b.disabled = true;
         } else {
           b.addEventListener("click", () => {
+            globalThis.ReverieTtsView?.stopForNavigation();
             globalThis.ReveriePdf?.scrollToPage(n.page_index);
             toc.hidden = true;
           });
@@ -826,6 +834,7 @@ function buildBookToc(loaded) {
         b.type = "button";
         b.textContent = `第 ${i + 1} 页`;
         b.addEventListener("click", () => {
+          globalThis.ReverieTtsView?.stopForNavigation();
           globalThis.ReveriePdf?.scrollToPage(i);
           toc.hidden = true;
         });
@@ -841,6 +850,7 @@ function buildBookToc(loaded) {
     b.type = "button";
     b.textContent = ch.title || ch.href;
     b.addEventListener("click", () => {
+      globalThis.ReverieTtsView?.stopForNavigation();
       const sec = els.content.querySelector("[data-anchor='" + CSS.escape(ch.href) + "']");
       if (sec) { sec.scrollIntoView({ behavior: "smooth" }); toc.hidden = true; }
     });
@@ -867,6 +877,7 @@ function bookProgressFromDom() {
 }
 
 function gotoBookLocation(loc) {
+  globalThis.ReverieTtsView?.stopForNavigation(); // M8 §29: 跳转中断朗读
   if (typeof loc?.chapter_index === 'number') {
     const sec = els.content.querySelector(`.book-chapter[data-chapter-index='${loc.chapter_index}']`);
     if (!sec) return;
@@ -986,6 +997,7 @@ function runBookSearch() {
     row.appendChild(snippetWithMark(snippet, term));
     row.addEventListener('click', async () => {
       // canonical offsets are valid in the DOM: both sides share one text (M6 §33 / M7 §13)
+      globalThis.ReverieTtsView?.stopForNavigation();
       if (isPdf) await globalThis.ReveriePdf?.revealOffset(i);
       const range = ReaderAnchor.rangeForOffsets(els.content, i, i + term.length);
       flashRange(range);
@@ -1044,6 +1056,7 @@ for (const b of document.querySelectorAll('[data-view]')) {
   });
 }
 document.getElementById('btn-back').addEventListener('click', () => {
+  globalThis.ReverieTtsView?.close();
   globalThis.ReveriePdf?.dispose?.();
   showLibrary();
 });
@@ -1072,8 +1085,8 @@ document.addEventListener('keydown', (ev) => {
   if (!currentDoc || currentDoc.type !== 'pdf' || els.reader.hidden) return;
   const target = ev.target;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-  if (ev.key === 'ArrowLeft') { ev.preventDefault(); globalThis.ReveriePdf?.prevPage(); }
-  else if (ev.key === 'ArrowRight') { ev.preventDefault(); globalThis.ReveriePdf?.nextPage(); }
+  if (ev.key === 'ArrowLeft') { ev.preventDefault(); globalThis.ReverieTtsView?.stopForNavigation(); globalThis.ReveriePdf?.prevPage(); }
+  else if (ev.key === 'ArrowRight') { ev.preventDefault(); globalThis.ReverieTtsView?.stopForNavigation(); globalThis.ReveriePdf?.nextPage(); }
 });
 // M7 §11: PDF page/zoom controls
 document.getElementById('pdf-prev').addEventListener('click', () => globalThis.ReveriePdf?.prevPage());

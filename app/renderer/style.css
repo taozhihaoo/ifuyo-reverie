@@ -266,6 +266,23 @@ mark { background: rgba(255, 213, 79, 0.6); }
   font: inherit; padding: 2px 8px; cursor: pointer;
 }
 #pdf-controls button:hover { background: #f1eee8; }
+
+/* ---- M8: TTS ---- */
+#tts-controls {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--muted);
+}
+#tts-controls button {
+  border: 1px solid var(--line); background: none; border-radius: 6px;
+  font: inherit; padding: 2px 8px; cursor: pointer;
+}
+#tts-controls button:hover { background: #f1eee8; }
+#tts-controls select {
+  font: inherit; font-size: 12px; border: 1px solid var(--line);
+  border-radius: 6px; background: none; padding: 2px 4px; max-width: 160px;
+}
+#tts-status { font-size: 12px; color: var(--muted); }
+::highlight(reverie-tts) { background-color: rgba(102, 153, 255, 0.35); }
 .pdf-page {
   position: relative;
   margin: 0 auto 1em;

@@ -56,6 +56,21 @@
         <span id="pdf-zoom-label">100%</span>
         <button id="pdf-zoom-in" type="button" title="放大">＋</button>
       </div>
+      <div id="tts-controls" hidden>
+        <button id="tts-prev" type="button" title="上一句">⏮</button>
+        <button id="tts-play" type="button" title="朗读（从当前位置）">▶</button>
+        <button id="tts-next" type="button" title="下一句">⏭</button>
+        <button id="tts-stop" type="button" title="停止">■</button>
+        <select id="tts-rate" title="语速">
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2x</option>
+        </select>
+        <select id="tts-voice" title="语音"><option value="">自动语音</option></select>
+        <span id="tts-status"></span>
+      </div>
       <button id="btn-export-md" type="button">导出 MD</button>
       <button id="btn-export-epub" type="button">导出 EPUB</button>
       <div id="reader-meta"></div>
@@ -79,11 +94,14 @@
 
 <div id="selection-popup" hidden>
   <button id="popup-highlight" type="button">高亮</button>
+  <button id="popup-read" type="button">朗读所选</button>
   <button id="popup-repair" type="button">修复此标注</button>
 </div>
 
 <script src="reader-anchor.js"></script>
+<script src="tts-controller.js"></script>
 <script src="app.js"></script>
 <script type="module" src="pdf-view.js"></script>
+<script type="module" src="tts-view.js"></script>
 </body>
 </html>

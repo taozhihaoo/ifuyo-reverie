@@ -31,6 +31,12 @@ export class WebSpeechProvider {
     }));
   }
 
+  /** Chromium loads voices asynchronously — cb fires when the list changes. */
+  onVoicesChanged(cb) {
+    if (!this.available()) return;
+    try { window.speechSynthesis.onvoiceschanged = () => cb(); } catch { /* optional */ }
+  }
+
   /**
    * Speak one text. onDone(reason) fires exactly once with
    * 'ended' | 'cancelled' | Error.
