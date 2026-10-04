@@ -6,6 +6,7 @@
  */
 import { openEpubContainer, parseOpf, extractToc, EpubError } from './epub-book.js';
 import { sanitizeArticleHtml } from '../security/sanitize-html.js';
+import { JSDOM } from 'jsdom';
 
 export { EpubError };
 
@@ -57,13 +58,23 @@ export async function openBookSession(epubPath) {
     const href = posixJoin(book.opfDir, item.href);
     const xml = await readText(href);
     if (xml === null) continue;
-    const text = stripHtmlToText(xml);
-    if (text.length === 0) continue;
+    const bodyMatch = /<body[^>]*>([\s\S]*)<\/body>/i.exec(xml);
+    const body = bodyMatch ? bodyMatch[1] : xml;
+    const sanitized = await sanitizeArticleHtml(body);
+    // canonical chapter text = textContent of the SAME sanitized HTML the
+    // renderer inserts — main and renderer stay byte-consistent (M6 §33).
+    // Fragment parsing (innerHTML), NOT document parsing: JSDOM-as-document
+    // would drop the leading whitespace text node the renderer keeps.
+    const holder = new JSDOM('').window.document.createElement('div');
+    holder.innerHTML = sanitized;
+    const text = holder.textContent;
+    if (text.trim().length === 0) continue;
     chapters.push({
       index: chapters.length,
       href,
       title: chapterTitle(xml) ?? item.href,
       text,
+      xhtml: sanitized,
     });
   }
 
@@ -95,9 +106,13 @@ export async function chapterSanitizedXhtml(container, href) {
   return sanitizeArticleHtml(body);
 }
 
-/** Canonical whole-book text: chapter texts joined with blank lines. */
+/**
+ * Canonical whole-book text: chapter texts concatenated with NO separator —
+ * exactly what the renderer produces by stacking chapter sections in one
+ * container, so annotation offsets agree on both sides (M6 §33).
+ */
 export function bookCanonicalText(session) {
-  return session.chapters.map((c) => c.text).join('\n\n');
+  return session.chapters.map((c) => c.text).join('');
 }
 
 /**
