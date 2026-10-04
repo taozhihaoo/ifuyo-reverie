@@ -112,7 +112,7 @@ function buildSection(page) {
   // textContent must stay byte-equal to canonical text (M7 §13)
   const err = document.createElement('div');
   err.className = 'pdf-page-error';
-  err.title = '此页无法渲染';
+  err.dataset.msg = window.I18N.t('pdf.pageError');
   section.appendChild(err);
 
   els.content.appendChild(section);

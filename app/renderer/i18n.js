@@ -1,0 +1,232 @@
+/**
+ * i18n (Post-1.0): zh-CN / en-US UI strings. Classic script; exposes
+ * window.I18N. Static HTML is tagged with data-i18n / data-i18n-ph /
+ * data-i18n-title and translated by applyStatic(); dynamic strings in
+ * app.js go through t(). Language persists in localStorage and a
+ * `reverie:langchanged` event lets view code re-render.
+ */
+(function () {
+  const DICT = {
+    zh: {
+      'topbar.search.ph': '搜索全部资料…（Ctrl+K，支持 tag: is: author: 过滤）',
+      'topbar.reindex': '重建索引',
+      'topbar.lang': '语言',
+      'topbar.theme': '主题',
+      'theme.light': '浅色', 'theme.dark': '深色', 'theme.system': '跟随系统',
+      'view.all': '全部资料', 'view.inbox': 'Inbox', 'view.unread': '未读',
+      'view.favorites': '收藏', 'view.recent': '最近阅读', 'view.daily-review': '每日回顾',
+      'sidebar.feeds': '订阅源',
+      'feed.add.ph': 'RSS / Atom URL，回车添加',
+      'feed.adding': '正在订阅…', 'feed.added': '已订阅，刷新按钮获取文章',
+      'feed.duplicate': '该订阅已存在', 'feed.failed': '订阅失败',
+      'feed.failedDetail': '（Reverie 未修改任何本地资料）',
+      'feed.refresh': '刷新此订阅源', 'feed.pause': '暂停订阅', 'feed.resume': '恢复订阅',
+      'feed.delete': '删除订阅（保留已有文章）',
+      'feed.deleteConfirm': '删除订阅「{title}」？\n已保存的文章会保留在资料库中。',
+      'btn.addEpub': '+ 添加 EPUB', 'btn.addPdf': '+ 添加 PDF', 'btn.doctor': '🩺 Doctor 体检',
+      'btn.exportEpubView': '导出 EPUB（{n} 篇合并）',
+      'll.label': '库位置', 'll.change': '更改…', 'll.open': '打开文件夹', 'll.logs': '日志',
+      'reader.back': '← 返回', 'reader.annotations': '标注', 'reader.toc': '目录', 'reader.bookmark': '书签',
+      'reader.exportMd': '导出 MD', 'reader.exportEpub': '导出 EPUB',
+      'pdf.prev': '上一页（←）', 'pdf.next': '下一页（→）', 'pdf.zoomOut': '缩小', 'pdf.zoomIn': '放大',
+      'pdf.pageError': '此页无法渲染（其余页面不受影响）',
+      'tts.prev': '上一句', 'tts.play': '朗读（从当前位置）', 'tts.pause': '暂停',
+      'tts.resume': '继续', 'tts.next': '下一句', 'tts.stop': '停止', 'tts.rate': '语速', 'tts.voice': '语音',
+      'tts.voiceAuto': '自动语音',
+      'ann.panel': '标注', 'ann.note.ph': '添加笔记…',
+      'toc.title': '目录', 'toc.search': '书内搜索', 'toc.search.ph': '在本书中查找…',
+      'popup.highlight': '高亮', 'popup.read': '朗读所选', 'popup.repair': '修复此标注',
+      'doctor.title': 'Doctor 体检', 'doctor.repair': '安全修复（预览后执行）', 'doctor.report': '导出报告 (.md)',
+      'ann.notePh': '添加笔记…', 'ann.repair': '修复', 'ann.jump': '跳转原文',
+      'ann.jumpLoc': '跳转', 'ann.delete': '删除',
+      'ann.repairHint': '请在正文中选中该标注的新位置文本，然后在弹出菜单中选择“修复此标注”。',
+      'ann.gone': '该标注已无法在当前正文中定位（内容可能已变化）。引文与笔记仍保留在标注面板中。',
+      'ann.noQuote': '(无锚点笔记)', 'ann.orphanWarn': '⚠ 无法在当前文档中定位',
+      'ann.unit.chapter': '章', 'ann.unit.page': '页', 'ann.unit.offset': '文中位置',
+      'reader.savedAt': '保存于 ',
+      'toc.page': '第 {n} 页', 'toc.pageLabeled': '第 {n} 页（标签 {label}）', 'toc.untitled': '（无标题）',
+      'toc.chapter': '第 {n} 章', 'toc.para': '第 {n} 段',
+      'empty.all': '资料库还是空的。在浏览器里点击 “Save page to Reverie” 保存第一篇。',
+      'empty.inbox': 'Inbox 是空的——没有待处理的资料。',
+      'empty.favorites': '还没有收藏。', 'empty.unread': '没有未读资料。',
+      'empty.recent': '最近没有打开过文章。', 'empty.daily-review': '每日回顾已完成。',
+      'list.more': '显示 {n} / {total} 篇（缩小范围或使用搜索）',
+      'list.read': '已读', 'list.unread': '未读',
+      'row.fav': '☆ 收藏', 'row.unfav': '★ 取消收藏',
+      'row.markRead': '标为已读', 'row.markUnread': '标为未读',
+      'row.inbox': '加入 Inbox', 'row.uninbox': '移出 Inbox', 'row.delete': '删除',
+      'tag.addPh': '添加标签，回车确认', 'tag.remove': '移除标签 {tag}',
+      'state.saveFailed': '无法保存此更改，请重试。',
+      'dialog.deleteAnn': '删除这条标注？',
+      'match.title': '标题', 'match.author': '作者', 'match.tag': '标签', 'match.highlight': '高亮',
+      'match.note': '笔记', 'match.body': '正文', 'match.url': '链接',
+      'search.errorSyntax': '搜索语法有误：{err}',
+      'search.noResults': '没有找到匹配的结果。换个关键词试试。',
+      'search.orphaned': '（无法定位）', 'search.cap200': '仅显示前 200 条结果。',
+      'export.doing': '正在导出 EPUB…',
+      'export.done': '已导出：{path}（{chapters} 章', 'export.warn': '；{n} 条警告', 'export.skipped': '；跳过 {n} 篇',
+      'export.failed': '导出失败：', 'export.unknown': '未知错误',
+      'export.mdDone': 'Markdown 导出完成', 'export.mdFailed': '导出失败 {n} 篇',
+      'export.epubDone': 'EPUB 导出完成', 'export.epubFailed': '导出失败 {n} 篇',
+      'epub.addFailed': 'EPUB 添加失败：',
+      'pdf.protected': '此 PDF 受密码保护，暂不支持', 'pdf.tooLarge': 'PDF 文件过大',
+      'pdf.pageLimit': 'PDF 页数超出支持范围', 'pdf.addFailed': 'PDF 添加失败',
+      'feed.emptyFeed': '该订阅源下暂无文章，点击侧栏订阅源的刷新按钮获取。',
+      'review.done': '本次回顾完成 ✅',
+      'review.kind.highlight': '高亮', 'review.kind.note': '笔记', 'review.kind.article': '文章',
+      'review.orphaned': '（无法定位）',
+      'reindex.done': '索引已重建（文章 {count} 篇，搜索 {total} 条）',
+      'doctor.scanning': '正在扫描…',
+      'doctor.summary': '文档 {docs} · 检查 {checks} · 发现 {findings}（error {e} / warning {w} / info {i}）· 可安全修复 {r}',
+      'doctor.healthy': '未发现问题，库是健康的。',
+      'doctor.repairFindingBtn': '记录级修复', 'doctor.nothingToFix': '该文件没有需要修复的行。',
+      'doctor.annRepairConfirm': '记录级修复 {dir}/annotations.jsonl：\n\n保留 {kept} 条有效标注，隔离 {q} 条坏行（原文件自动备份，坏行可人工还原）。\n执行？',
+      'doctor.annRepairDone': '修复完成：保留 {kept} 条，隔离 {q} 条。',
+      'doctor.actionLine': '• {action} — {target}（影响 {n} 项，风险：{risk}）',
+      'doctor.noActions': '没有可执行的修复。',
+      'doctor.repairConfirm': '将执行 {n} 项安全修复（用户源文件 0 改动，自动备份）：\n\n{list}\n\n执行？',
+      'doctor.repairDone': '修复完成：{actions}。\n仍有 {remaining} 项需要人工处理（见列表）。',
+      'doctor.none': '无', 'doctor.reportDone': 'Doctor 报告已导出。',
+      'll.envNote': '（由 REVERIE_LIBRARY 环境变量指定）', 'll.saveFailed': '保存失败：',
+      'dialog.libraryChange': '将库位置设置为：\n{path}\n\n保存后需要重启 Reverie 生效。\n（原库目录与其中的资料不会被移动或修改）',
+      'dialog.libraryRelaunch': '库位置已保存。立即重启 Reverie 以使用新库？',
+      'tts.statusSelection': '朗读所选', 'tts.statusSentence': '第 {i} / {n} 句', 'tts.paused': '已暂停',
+      'tts.noVoiceMatch': '未找到匹配语言的语音，将使用默认语音', 'tts.noVoices': '未找到可用语音',
+      'tts.providerError': '朗读服务发生错误', 'tts.completed': '已读完',
+      'tts.noReadableText': '当前文档没有可读取文本', 'tts.selectionSection': '所选内容',
+      'dialog.deleteDoc': '删除「{title}」？\n将同时删除：正文、标注、标签与状态、本地资源。',
+      'dialog.deleteAnn': '删除这条标注？',
+      'dialog.feedDelete': '删除订阅「{title}」？\n已保存的文章会保留在资料库中。',
+      'dialog.repairConfirm': '将执行 {n} 项安全修复（用户源文件 0 改动，自动备份）：\n\n{list}\n\n执行？',
+      'dialog.libraryChange': '将库位置设置为：\n{path}\n\n保存后需要重启 Reverie 生效。\n（原库目录与其中的资料不会被移动或修改）',
+      'dialog.libraryRelaunch': '库位置已保存。立即重启 Reverie 以使用新库？',
+      'alert.readFailed': '无法保存此更改，请重试。',
+    },
+    en: {
+      'topbar.search.ph': 'Search everything… (Ctrl+K, filters: tag: is: author:)',
+      'topbar.reindex': 'Rebuild index',
+      'topbar.lang': 'Language',
+      'topbar.theme': 'Theme',
+      'theme.light': 'Light', 'theme.dark': 'Dark', 'theme.system': 'System',
+      'view.all': 'All', 'view.inbox': 'Inbox', 'view.unread': 'Unread',
+      'view.favorites': 'Favorites', 'view.recent': 'Recent', 'view.daily-review': 'Daily review',
+      'sidebar.feeds': 'Feeds',
+      'feed.add.ph': 'RSS / Atom URL — press Enter',
+      'feed.adding': 'Subscribing…', 'feed.added': 'Subscribed — use ↻ to fetch articles',
+      'feed.duplicate': 'Already subscribed', 'feed.failed': 'Subscribe failed', 'feed.failedDetail': '(Reverie did not modify any local data)',
+      'feed.refresh': 'Refresh this feed', 'feed.pause': 'Pause feed', 'feed.resume': 'Resume feed',
+      'feed.delete': 'Unsubscribe (saved articles are kept)',
+      'feed.deleteConfirm': 'Unsubscribe "{title}"?\nSaved articles remain in your library.',
+      'btn.addEpub': '+ Add EPUB', 'btn.addPdf': '+ Add PDF', 'btn.doctor': '🩺 Doctor',
+      'btn.exportEpubView': 'Export EPUB ({n} merged)',
+      'll.label': 'Library', 'll.change': 'Change…', 'll.open': 'Open folder', 'll.logs': 'Logs',
+      'reader.back': '← Back', 'reader.annotations': 'Annotations', 'reader.toc': 'Contents', 'reader.bookmark': 'Bookmark',
+      'reader.exportMd': 'Export MD', 'reader.exportEpub': 'Export EPUB',
+      'pdf.prev': 'Previous page (←)', 'pdf.next': 'Next page (→)', 'pdf.zoomOut': 'Zoom out', 'pdf.zoomIn': 'Zoom in',
+      'pdf.pageError': 'This page could not be rendered (other pages are unaffected)',
+      'tts.prev': 'Previous sentence', 'tts.play': 'Read aloud (from here)', 'tts.pause': 'Pause',
+      'tts.resume': 'Resume', 'tts.next': 'Next sentence', 'tts.stop': 'Stop', 'tts.rate': 'Rate', 'tts.voice': 'Voice',
+      'tts.voiceAuto': 'Auto voice',
+      'ann.panel': 'Annotations', 'ann.note.ph': 'Add a note…',
+      'toc.title': 'Contents', 'toc.search': 'Search in book', 'toc.search.ph': 'Find in this book…',
+      'popup.highlight': 'Highlight', 'popup.read': 'Read selection', 'popup.repair': 'Re-anchor',
+      'doctor.title': 'Doctor', 'doctor.repair': 'Safe repair (preview first)', 'doctor.report': 'Export report (.md)',
+      'ann.notePh': 'Add a note…', 'ann.repair': 'Re-anchor', 'ann.jump': 'Go to source',
+      'ann.jumpLoc': 'Go to bookmark', 'ann.delete': 'Delete',
+      'ann.repairHint': 'Select the new location text in the article, then choose "Re-anchor" from the popup.',
+      'ann.gone': 'This annotation can no longer be located in the current text (content may have changed). Quote and note are kept in the panel.',
+      'ann.noQuote': '(no quote)', 'ann.orphanWarn': '⚠ Cannot locate in current document',
+      'ann.unit.chapter': 'chapter', 'ann.unit.page': 'page', 'ann.unit.offset': 'position',
+      'reader.savedAt': 'Saved ',
+      'toc.page': 'Page {n}', 'toc.pageLabeled': 'Page {n} (label {label})', 'toc.untitled': '(untitled)',
+      'toc.chapter': 'Chapter {n}', 'toc.para': 'Paragraph {n}',
+      'empty.all': 'Your library is empty. Use "Save page to Reverie" in the browser to save your first article.',
+      'empty.inbox': 'Inbox is empty — nothing to process.',
+      'empty.favorites': 'No favorites yet.', 'empty.unread': 'Nothing unread.',
+      'empty.recent': 'No recent reading.', 'empty.daily-review': 'Daily review complete.',
+      'list.more': 'Showing {n} / {total} items (narrow the scope or use search)',
+      'list.read': 'Read', 'list.unread': 'Unread',
+      'row.fav': '☆ Favorite', 'row.unfav': '★ Unfavorite',
+      'row.markRead': 'Mark unread', 'row.markUnread': 'Mark read',
+      'row.inbox': 'Add to Inbox', 'row.uninbox': 'Remove from Inbox', 'row.delete': 'Delete',
+      'tag.addPh': 'Add tag, press Enter', 'tag.remove': 'Remove tag {tag}',
+      'state.saveFailed': 'Could not save this change — please retry.',
+      'dialog.deleteAnn': 'Delete this annotation?',
+      'match.title': 'Title', 'match.author': 'Author', 'match.tag': 'Tag', 'match.highlight': 'Highlight',
+      'match.note': 'Note', 'match.body': 'Body', 'match.url': 'Link',
+      'search.errorSyntax': 'Invalid search syntax: {err}',
+      'search.noResults': 'No matches. Try different keywords.',
+      'search.orphaned': '(cannot locate)', 'search.cap200': 'Showing only the first 200 results.',
+      'export.doing': 'Exporting EPUB…',
+      'export.done': 'Exported: {path} ({chapters} chapters', 'export.warn': '; {n} warning(s)', 'export.skipped': '; {n} skipped',
+      'export.failed': 'Export failed: ', 'export.unknown': 'unknown error',
+      'export.mdDone': 'Markdown export complete', 'export.mdFailed': '{n} document(s) failed',
+      'export.epubDone': 'EPUB export complete', 'export.epubFailed': '{n} document(s) failed',
+      'epub.addFailed': 'EPUB import failed: ',
+      'pdf.protected': 'This PDF is password-protected (not supported yet)', 'pdf.tooLarge': 'PDF file too large',
+      'pdf.pageLimit': 'PDF page count exceeds the supported range', 'pdf.addFailed': 'PDF import failed',
+      'feed.emptyFeed': 'No articles in this feed yet — use the refresh button in the sidebar.',
+      'review.done': 'Review complete ✅',
+      'review.kind.highlight': 'Highlight', 'review.kind.note': 'Note', 'review.kind.article': 'Article',
+      'review.orphaned': '(cannot locate)',
+      'reindex.done': 'Index rebuilt ({count} documents, {total} search entries)',
+      'doctor.scanning': 'Scanning…',
+      'doctor.summary': '{docs} documents · {checks} checks · {findings} findings (error {e} / warning {w} / info {i}) · {r} safely repairable',
+      'doctor.healthy': 'No issues found — your library is healthy.',
+      'doctor.repairFindingBtn': 'Record-level repair', 'doctor.nothingToFix': 'Nothing to fix in this file.',
+      'doctor.annRepairConfirm': 'Record-level repair of {dir}/annotations.jsonl:\n\nKeep {kept} valid annotations, quarantine {q} bad lines (the original file is backed up first).\nProceed?',
+      'doctor.annRepairDone': 'Repaired: kept {kept}, quarantined {q}.',
+      'doctor.actionLine': '• {action} — {target} ({n} items affected, risk: {risk})',
+      'doctor.noActions': 'No repairs to execute.',
+      'doctor.repairConfirm': '{n} safe repair(s) will run (0 user source files modified, auto backup):\n\n{list}\n\nProceed?',
+      'doctor.repairDone': 'Repairs done: {actions}.\n{remaining} item(s) still need manual attention (see list).',
+      'doctor.none': 'none', 'doctor.reportDone': 'Doctor report exported.',
+      'll.envNote': '(set via REVERIE_LIBRARY environment variable)', 'll.saveFailed': 'Save failed: ',
+      'dialog.libraryChange': 'Set library location to:\n{path}\n\nA restart is required.\n(The previous folder and its data are left untouched.)',
+      'dialog.libraryRelaunch': 'Library location saved. Restart Reverie now?',
+      'tts.statusSelection': 'Reading selection', 'tts.statusSentence': 'Sentence {i} / {n}', 'tts.paused': 'Paused',
+      'tts.noVoiceMatch': 'No voice found for this language — using the default voice',
+      'tts.noVoices': 'No voices available', 'tts.providerError': 'Speech service error', 'tts.completed': 'Finished',
+      'tts.noReadableText': 'This document contains no readable text', 'tts.selectionSection': 'Selection',
+      'dialog.deleteDoc': 'Delete "{title}"?\nThis removes content, annotations, tags, state and local assets.',
+      'dialog.deleteAnn': 'Delete this annotation?',
+      'dialog.feedDelete': 'Unsubscribe "{title}"?\nSaved articles remain in your library.',
+      'dialog.repairConfirm': '{n} safe repair(s) will run (0 user source files modified, auto backup):\n\n{list}\n\nProceed?',
+      'dialog.libraryChange': 'Set library location to:\n{path}\n\nA restart is required.\n(The previous folder and its data are left untouched.)',
+      'dialog.libraryRelaunch': 'Library location saved. Restart Reverie now?',
+      'alert.readFailed': 'Could not save this change — please retry.',
+    },
+  };
+
+  let lang = 'zh';
+  try {
+    const saved = localStorage.getItem('reverie.lang');
+    if (saved && DICT[saved]) lang = saved;
+  } catch { /* localStorage unavailable */ }
+
+  function t(key, vars) {
+    let s = (DICT[lang] && DICT[lang][key]) ?? DICT.zh[key] ?? key;
+    if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll('{' + k + '}', String(v));
+    return s;
+  }
+
+  function applyStatic(root) {
+    const r = root || document;
+    r.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    r.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+    r.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  }
+
+  function setLang(l) {
+    if (!DICT[l]) return;
+    lang = l;
+    try { localStorage.setItem('reverie.lang', lang); } catch { /* */ }
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+    applyStatic();
+    document.dispatchEvent(new CustomEvent('reverie:langchanged', { detail: { lang } }));
+  }
+
+  window.I18N = { t, setLang, getLang: () => lang, applyStatic, lang };
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  applyStatic();
+})();

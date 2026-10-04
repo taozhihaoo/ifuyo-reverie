@@ -47,13 +47,13 @@ function sectionsFor(loaded) {
   };
   if (loaded.type === 'book') {
     return spansOf(loaded.chapters.map((c) => c.text)).map((s) => ({
-      label: loaded.chapters[s.index].title || `第 ${s.index + 1} 章`,
+      label: loaded.chapters[s.index].title || window.I18N.t('toc.chapter', { n: s.index + 1 }),
       start: s.start, end: s.end,
     }));
   }
   if (loaded.type === 'pdf') {
     return (loaded.page_spans ?? []).map((s) => ({
-      label: `第 ${s.index + 1} 页`,
+      label: window.I18N.t('toc.page', { n: s.index + 1 }),
       start: s.start, end: s.end,
     }));
   }
@@ -62,7 +62,7 @@ function sectionsFor(loaded) {
   return spans.map((s) => {
     const b = loaded.blocks[s.index];
     return {
-      label: b.type === 'heading' ? (b.text || '标题').slice(0, 24) : `第 ${s.index + 1} 段`,
+      label: b.type === 'heading' ? (b.text || window.I18N.t('toc.untitled')).slice(0, 24) : window.I18N.t('toc.para', { n: s.index + 1 }),
       start: s.start, end: s.end,
       kind: b.type === 'code' ? 'code' : undefined,
     };
@@ -98,7 +98,7 @@ function updatePlayButton() {
   if (!els.play) return;
   const st = controller?.getState() ?? 'idle';
   els.play.textContent = st === 'speaking' ? '⏸' : '▶';
-  els.play.title = st === 'speaking' ? '暂停' : (st === 'paused' ? '继续' : '朗读（从当前位置）');
+  els.play.title = st === 'speaking' ? window.I18N.t('tts.pause') : (st === 'paused' ? window.I18N.t('tts.resume') : window.I18N.t('tts.play'));
 }
 
 // ------------------------------------------------------------- controller
@@ -118,9 +118,9 @@ function ensureController() {
       if (state === 'idle' && !selectionMode) setStatus('');
       if (state === 'speaking') {
         const i = controller.getCursor();
-        setStatus(selectionMode ? '朗读所选' : `第 ${i + 1} / ${segments.length} 句`);
+        setStatus(selectionMode ? window.I18N.t('tts.statusSelection') : window.I18N.t('tts.statusSentence', { i: i + 1, n: segments.length }));
       } else if (state === 'paused') {
-        setStatus('已暂停');
+        setStatus(window.I18N.t('tts.paused'));
       }
     },
     onNotice: (kind) => {
@@ -140,7 +140,7 @@ function populateVoices() {
   els.voice.textContent = '';
   const auto = document.createElement('option');
   auto.value = '';
-  auto.textContent = '自动语音';
+  auto.textContent = window.I18N.t('tts.voiceAuto');
   els.voice.appendChild(auto);
   for (const v of voices) {
     const opt = document.createElement('option');
@@ -195,7 +195,7 @@ export function open(loaded, readerContentEl) {
   const available = globalThis.Tts && providerAvailable() && canonical.trim().length > 0;
   els.controls.hidden = !available;
   if (!available) {
-    if (canonical.trim().length === 0 && els.status) setStatus('当前文档没有可读取文本');
+    if (canonical.trim().length === 0 && els.status) setStatus(window.I18N.t('tts.noReadableText'));
     close();
     return false;
   }
@@ -248,7 +248,7 @@ export function readSelection(quote, absoluteStart) {
   if (!controller || !quote?.trim()) return;
   selectionMode = true;
   const { segments: selSegments } = buildReadingSegments(
-    [{ label: '所选内容', start: 0, end: quote.length }],
+    [{ label: window.I18N.t('tts.selectionSection'), start: 0, end: quote.length }],
     quote,
   );
   const absolute = selSegments.map((s) => ({

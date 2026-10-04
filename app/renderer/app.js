@@ -144,15 +144,10 @@ let lastSearchResults = [];
 
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const hostOf = (url) => { try { return new URL(url).host; } catch { return ''; } };
+const t = (key, vars) => window.I18N.t(key, vars);
 
 // ============================================================ library views
-const VIEW_EMPTY = {
-  all: '资料库还是空的。在浏览器里点击 “Save page to Reverie” 保存第一篇。',
-  inbox: 'Inbox 是空的——没有待处理的资料。',
-  favorites: '还没有收藏。',
-  unread: '没有未读资料。',
-  recent: '最近没有打开过文章。',
-};
+const viewEmpty = (view) => t('empty.' + view);
 
 let activeFeedId = null;
 
@@ -185,10 +180,10 @@ async function renderFeedList() {
     const actions = document.createElement('span');
     actions.className = 'feed-actions';
     for (const [label, title, fn] of [
-      ['↻', '刷新此订阅源', () => refreshFeedById(feed.feed_id)],
-      [feed.enabled ? '⏸' : '▶', feed.enabled ? '暂停订阅' : '恢复订阅', () => reverie.feedsSetEnabled(feed.feed_id, !feed.enabled).then(showLibrary)],
-      ['×', '删除订阅（保留已有文章）', () => {
-        if (confirm(`删除订阅「${feed.display_title}」？\n已保存的文章会保留在资料库中。`)) {
+      ['↻', t('feed.refresh'), () => refreshFeedById(feed.feed_id)],
+      [feed.enabled ? '⏸' : '▶', feed.enabled ? t('feed.pause') : t('feed.resume'), () => reverie.feedsSetEnabled(feed.feed_id, !feed.enabled).then(showLibrary)],
+      ['×', t('feed.delete'), () => {
+        if (confirm(t('dialog.feedDelete', { title: feed.display_title }))) {
           reverie.feedsDelete(feed.feed_id).then(() => { if (activeFeedId === feed.feed_id) activeFeedId = null; showLibrary(); });
         }
       }],
@@ -216,7 +211,7 @@ async function renderFeedList() {
         await reverie.bookAdd(p);
         await showLibrary();
       } catch (err) {
-        alert('EPUB 添加失败：' + String(err.message ?? err).slice(0, 80));
+        alert(t('epub.addFailed') + String(err.message ?? err).slice(0, 80));
       }
       addBtn.disabled = false;
     });
@@ -234,10 +229,10 @@ async function renderFeedList() {
         await showLibrary();
       } catch (err) {
         const msg = String(err.message ?? err);
-        const friendly = msg.includes('PASSWORD_REQUIRED') ? '此 PDF 受密码保护，暂不支持'
-          : msg.includes('TOO_LARGE') ? 'PDF 文件过大'
-          : msg.includes('PAGE_LIMIT') ? 'PDF 页数超出支持范围'
-          : 'PDF 添加失败';
+        const friendly = msg.includes('PASSWORD_REQUIRED') ? t('pdf.protected')
+          : msg.includes('TOO_LARGE') ? t('pdf.tooLarge')
+          : msg.includes('PAGE_LIMIT') ? t('pdf.pageLimit')
+          : t('pdf.addFailed');
         alert(friendly + '：' + msg.slice(0, 80));
       }
       pdfBtn.disabled = false;
@@ -262,7 +257,7 @@ function showReviewItem() {
   box.textContent = '';
   if (!reviewSession || reviewIndex >= reviewSession.length) {
     document.getElementById('review-empty').hidden = false;
-    document.getElementById('review-empty').textContent = '本次回顾完成 ✅';
+    document.getElementById('review-empty').textContent = t('review.done');
     document.getElementById('review-nav').hidden = true;
     document.getElementById('review-open').hidden = true;
     return;
@@ -270,8 +265,8 @@ function showReviewItem() {
   document.getElementById('review-empty').hidden = true;
   document.getElementById('review-nav').hidden = false;
   const item = reviewSession[reviewIndex];
-  const kind = { highlight: '高亮', note: '笔记', article: '文章' }[item.kind] ?? item.kind;
-  document.getElementById('review-kind').textContent = kind + (item.annotation_status === 'orphaned' ? '（无法定位）' : '');
+  const kind = t('review.kind.' + item.kind);
+  document.getElementById('review-kind').textContent = kind + (item.annotation_status === 'orphaned' ? t('review.orphaned') : '');
   const titleEl = document.getElementById('review-doc-title');
   titleEl.textContent = item.document_title ?? '(untitled)';
   titleEl.onclick = () => item.document_id && openArticle(item.document_id);
@@ -355,12 +350,12 @@ async function showLibrary() {
   els.list.textContent = '';
   els.empty.hidden = results.length > 0;
   els.empty.textContent = activeFeedId
-    ? '该订阅源下暂无文章，点击侧栏订阅源的刷新按钮获取。'
-    : (VIEW_EMPTY[currentView] ?? VIEW_EMPTY.all);
+    ? t('feed.emptyFeed')
+    : viewEmpty(currentView);
   if (total > results.length) {
     const more = document.createElement('li');
     more.className = 'load-more';
-    more.textContent = `显示 ${results.length} / ${total} 篇（缩小范围或使用搜索）`;
+    more.textContent = t('list.more', { n: results.length, total });
     els.list.appendChild(more);
   }
 
@@ -375,7 +370,7 @@ async function showLibrary() {
   const exportBtn = document.getElementById('btn-export-view-epub');
   if (exportBtn) {
     exportBtn.hidden = currentViewArticleIds.length === 0;
-    exportBtn.textContent = `导出 EPUB（${currentViewArticleIds.length} 篇合并）`;
+    exportBtn.textContent = t('btn.exportEpubView', { n: currentViewArticleIds.length });
   }
 }
 
@@ -385,12 +380,12 @@ async function exportCurrentViewAsEpub() {
   if (currentViewArticleIds.length === 0) return;
   // NOTE: window.prompt does not exist in Electron — use the default title
   // directly (M9 §64: first export should be simple); the file can be renamed.
-  const viewLabel = { all: '全部资料', inbox: 'Inbox', unread: '未读', favorites: '收藏', recent: '最近阅读' }[currentView] ?? (activeFeedId ? '订阅源' : currentTags.join('+') || '所选标签');
+  const viewLabel = t('view.' + currentView);
   const bookTitle = `Reverie ${viewLabel} ${new Date().toISOString().slice(0, 10)}`;
   // test hook: CDP smokes cannot drive the native directory dialog
   const dest = await (window.__reverieExportDirPicker ? window.__reverieExportDirPicker() : reverie.pickExportDir());
   if (!dest) return;
-  els.queueHint.textContent = '正在导出 EPUB…';
+  els.queueHint.textContent = t('export.doing');
   try {
     const result = await reverie.exportEpub(currentViewArticleIds, dest, {
       fileName: bookTitle,
@@ -398,16 +393,16 @@ async function exportCurrentViewAsEpub() {
       mode: 'merge',
     });
     if (result.success) {
-      const warn = (result.warnings?.length ?? 0) > 0 ? `；${result.warnings.length} 条警告` : '';
-      const skip = (result.skipped?.length ?? 0) > 0 ? `；跳过 ${result.skipped.length} 篇` : '';
-      els.queueHint.textContent = `已导出：${result.outputPath}（${result.chapterCount} 章${warn}${skip}）`;
+      const warn = (result.warnings?.length ?? 0) > 0 ? t('export.warn', { n: result.warnings.length }) : '';
+      const skip = (result.skipped?.length ?? 0) > 0 ? t('export.skipped', { n: result.skipped.length }) : '';
+      els.queueHint.textContent = t('export.done', { path: result.outputPath, chapters: result.chapterCount }) + warn + skip;
     } else {
       els.queueHint.textContent = '';
-      alert('导出失败：' + (result.error ?? '未知错误'));
+      alert(t('export.failed') + (result.error ?? t('export.unknown')));
     }
   } catch (err) {
     els.queueHint.textContent = '';
-    alert('导出失败：' + String(err.message ?? err).slice(0, 120));
+    alert(t('export.failed') + String(err.message ?? err).slice(0, 120));
   }
   setTimeout(() => { els.queueHint.textContent = ''; }, 8000);
 }
@@ -419,7 +414,7 @@ function renderLibraryRow(e) {
   head.className = 'a-head';
   const dot = document.createElement('span');
   dot.className = 'read-dot' + (e.read ? ' read' : '');
-  dot.title = e.read ? '已读' : '未读';
+  dot.title = e.read ? t('list.read') : t('list.unread');
   const title = document.createElement('span');
   title.className = 'a-title';
   title.textContent = e.title;
@@ -443,10 +438,10 @@ function renderLibraryRow(e) {
   const actions = document.createElement('span');
   actions.className = 'a-actions';
   for (const [label, fn, active] of [
-    [e.favorite ? '★ 取消收藏' : '☆ 收藏', () => setState(e.document_id, { favorite: !e.favorite })],
-    [e.read ? '标为未读' : '标为已读', () => setState(e.document_id, { read: !e.read })],
-    [e.inbox ? '移出 Inbox' : '加入 Inbox', () => setState(e.document_id, { inbox: !e.inbox })],
-    ['删除', () => removeArticle(e.document_id, e.title)],
+    [e.favorite ? t('row.unfav') : t('row.fav'), () => setState(e.document_id, { favorite: !e.favorite })],
+    [e.read ? t('row.markUnread') : t('row.markRead'), () => setState(e.document_id, { read: !e.read })],
+    [e.inbox ? t('row.uninbox') : t('row.inbox'), () => setState(e.document_id, { inbox: !e.inbox })],
+    [t('row.delete'), () => removeArticle(e.document_id, e.title)],
   ]) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -463,7 +458,7 @@ function renderLibraryRow(e) {
   tagRow.className = 'tag-editor';
   const tagInput = document.createElement('input');
   tagInput.type = 'text';
-  tagInput.placeholder = '添加标签，回车确认';
+  tagInput.placeholder = t('tag.addPh');
   tagInput.addEventListener('keydown', async (ev) => {
     if (ev.key === 'Enter' && tagInput.value.trim()) {
       ev.stopPropagation();
@@ -480,7 +475,7 @@ function renderLibraryRow(e) {
     const x = document.createElement('button');
     x.type = 'button';
     x.textContent = '×';
-    x.title = `移除标签 ${tag}`;
+    x.title = t('tag.remove', { tag });
     x.addEventListener('click', async (ev) => {
       ev.stopPropagation();
       await reverie.tagsRemove(e.document_id, tag);
@@ -500,14 +495,14 @@ async function setState(documentId, patch) {
   try {
     await reverie.stateSet(documentId, patch); // file first, then index (M3 §72/73)
   } catch (err) {
-    alert('无法保存此更改，请重试。'); // friendly error, M3 §75
+    alert(t('state.saveFailed')); // friendly error, M3 §75
     console.error('state persist failed:', err.message);
   }
   showLibrary();
 }
 
 async function removeArticle(documentId, title) {
-  if (!confirm(`删除「${title}」？\n将同时删除：正文、标注、标签与状态、本地资源。`)) return;
+  if (!confirm(t('dialog.deleteDoc', { title }))) return;
   await reverie.articleDelete(documentId);
 }
 
@@ -531,7 +526,7 @@ function snippetWithMark(snippet, term) {
   return span;
 }
 
-const MATCH_LABEL = { title: '标题', author: '作者', tag: '标签', highlight: '高亮', note: '笔记', body: '正文', url: '链接' };
+const matchLabel = (type) => t('match.' + type, type);
 
 async function runSearch() {
   const q = searchInput.value.trim();
@@ -547,14 +542,14 @@ async function runSearch() {
   if (res.error) {
     const p = document.createElement('p');
     p.className = 'search-error';
-    p.textContent = `搜索语法有误：${res.error}`;
+    p.textContent = t('search.errorSyntax', { err: res.error });
     searchResults.appendChild(p);
     return;
   }
   if (res.total === 0) {
     const p = document.createElement('p');
     p.className = 'search-error';
-    p.textContent = '没有找到匹配的结果。换个关键词试试。';
+    p.textContent = t('search.noResults');
     searchResults.appendChild(p);
     return;
   }
@@ -581,8 +576,8 @@ async function runSearch() {
       row.tabIndex = 0;
       const badge = document.createElement('span');
       badge.className = `match-badge match-${m.type}`;
-      badge.textContent = MATCH_LABEL[m.type] ?? m.type;
-      if (m.annotation_status === 'orphaned') badge.textContent += '（无法定位）';
+      badge.textContent = matchLabel(m.type);
+      if (m.annotation_status === 'orphaned') badge.textContent += t('search.orphaned');
       const snippet = document.createElement('span');
       snippet.className = 'match-snippet';
       snippet.appendChild(snippetWithMark(m.snippet, m.term));
@@ -606,7 +601,7 @@ async function openSearchMatch({ documentId, match }) {
     const annotation = currentDoc.annotations.find((a) => a.annotation_id === match.annotation_id);
     if (!annotation) return;
     if (annotation.status === 'orphaned') {
-      alert('该标注已无法在当前正文中定位（内容可能已变化）。引文与笔记仍保留在标注面板中。');
+      alert(t('ann.gone'));
       document.getElementById('annotation-panel').hidden = false;
       return;
     }
@@ -692,24 +687,24 @@ function renderPanel(annotations) {
     quote.className = 'ann-quote';
     if (a.type === 'bookmark') {
       const loc = a.locator?.location ?? {};
-      const unit = loc.chapter_index !== undefined ? '章' : loc.page_index !== undefined ? '页' : '文中位置';
+      const unit = t('ann.unit.' + (loc.chapter_index !== undefined ? 'chapter' : loc.page_index !== undefined ? 'page' : 'offset'));
       const num = (loc.chapter_index ?? loc.page_index ?? loc.offset ?? 0);
       quote.textContent = Number.isInteger(num) && (loc.chapter_index !== undefined || loc.page_index !== undefined)
         ? `🔖 书签 · 第 ${num + 1} ${unit}`
         : `🔖 书签`;
     } else {
-      quote.textContent = a.quoted_text ?? '(无锚点笔记)';
+      quote.textContent = a.quoted_text ?? t('ann.noQuote');
     }
     li.appendChild(quote);
     if (a.status === 'orphaned') {
       const warn = document.createElement('p');
       warn.className = 'ann-warn';
-      warn.textContent = '⚠ 无法在当前文档中定位';
+      warn.textContent = t('ann.orphanWarn');
       li.appendChild(warn);
     }
     const noteEl = document.createElement('textarea');
     noteEl.className = 'ann-note';
-    noteEl.placeholder = '添加笔记…';
+    noteEl.placeholder = t('ann.notePh');
     noteEl.value = a.note ?? '';
     noteEl.rows = a.note ? 2 : 1;
     noteEl.addEventListener('change', async () => {
@@ -719,26 +714,20 @@ function renderPanel(annotations) {
     li.appendChild(noteEl);
     const actions = document.createElement('div');
     actions.className = 'ann-actions';
-    for (const [label, fn] of a.status === 'orphaned'
-      ? [['修复', () => { repairTarget = a.annotation_id; hidePanel(); alert('请在正文中选中该标注的新位置文本，然后在弹出菜单中选择“修复此标注”。'); }, ['删除', () => removeAnnotation(a.annotation_id)]]]
-      : [['跳转原文', () => navigateTo(a)], ['删除', () => removeAnnotation(a.annotation_id)]]) {
-      void label; void fn;
-    }
-    // (build actions explicitly — the array-of-arrays above is unreadable)
     actions.textContent = '';
     const buttons = a.type === 'bookmark'
       ? [
-          ['跳转', () => gotoBookLocation(a.locator?.location ?? {})],
-          ['删除', () => removeAnnotation(a.annotation_id)],
+          [t('ann.jumpLoc'), () => gotoBookLocation(a.locator?.location ?? {})],
+          [t('ann.delete'), () => removeAnnotation(a.annotation_id)],
         ]
       : a.status === 'orphaned'
       ? [
-          ['修复', () => { repairTarget = a.annotation_id; hidePanel(); alert('请在正文中选中该标注的新位置文本，然后在弹出菜单中选择“修复此标注”。'); }],
-          ['删除', () => removeAnnotation(a.annotation_id)],
+          [t('ann.repair'), () => { repairTarget = a.annotation_id; hidePanel(); alert(t('ann.repairHint')); }],
+          [t('ann.delete'), () => removeAnnotation(a.annotation_id)],
         ]
       : [
-          ['跳转原文', () => navigateTo(a)],
-          ['删除', () => removeAnnotation(a.annotation_id)],
+          [t('ann.jump'), () => navigateTo(a)],
+          [t('ann.delete'), () => removeAnnotation(a.annotation_id)],
         ];
     for (const [label, fn] of buttons) {
       const b = document.createElement('button');
@@ -753,7 +742,7 @@ function renderPanel(annotations) {
 }
 
 async function removeAnnotation(annotationId) {
-  if (!confirm('删除这条标注？')) return;
+  if (!confirm(t('dialog.deleteAnn'))) return;
   await reverie.annotationDelete(currentDoc.documentId, annotationId);
   await refreshAnnotations();
 }
@@ -788,7 +777,7 @@ async function openArticle(documentId) {
   els.meta.textContent = [
     loaded.meta.author,
     loaded.meta.source?.canonical_url ? hostOf(loaded.meta.source.canonical_url) : hostOf(loaded.meta.source?.original_url ?? ""),
-    "保存于 " + fmtDate(loaded.meta.captured_at),
+    t("reader.savedAt") + " " + fmtDate(loaded.meta.captured_at),
   ].filter(Boolean).join(" · ");
   els.content.textContent = "";
   // reset scroll BEFORE the branches: any later scroll (after the IPC awaits
@@ -857,7 +846,7 @@ function buildBookToc(loaded) {
         const b = document.createElement("button");
         b.type = "button";
         b.style.paddingLeft = `${8 + depth * 14}px`;
-        b.textContent = n.title || (n.page_index != null ? `第 ${n.page_index + 1} 页` : "（无标题）");
+        b.textContent = n.title || (n.page_index != null ? t('toc.page', { n: n.page_index + 1 }) : t('toc.untitled'));
         if (n.page_index == null) {
           b.disabled = true;
         } else {
@@ -880,7 +869,7 @@ function buildBookToc(loaded) {
         const li = document.createElement("li");
         const b = document.createElement("button");
         b.type = "button";
-        b.textContent = `第 ${i + 1} 页`;
+        b.textContent = t('toc.page', { n: i + 1 });
         b.addEventListener("click", () => {
           globalThis.ReverieTtsView?.stopForNavigation();
           globalThis.ReveriePdf?.scrollToPage(i);
@@ -1024,10 +1013,10 @@ function runBookSearch() {
   if (spans.length === 0) return;
   const spanAt = (off) => spans.find((s) => off >= s.start && off < s.end) ?? spans[spans.length - 1];
   const spanTitle = (s) => {
-    if (!isPdf) return s.title || `第 ${s.index + 1} 章`;
+    if (!isPdf) return s.title || t('toc.chapter', { n: s.index + 1 });
     const label = globalThis.ReveriePdf?.pageLabel?.(s.index);
     const idx = String(s.index + 1);
-    return `第 ${idx} 页` + (label && label !== idx ? `（标签 ${label}）` : '');
+    return t('toc.pageLabeled', { n: Number(idx), label });
   };
   const MAX = 200;
   let hits = 0;
@@ -1061,7 +1050,7 @@ function runBookSearch() {
   if (hits === 0 || hits === MAX) {
     const p = document.createElement('p');
     p.className = 'bs-empty';
-    p.textContent = hits === 0 ? '没有找到匹配的结果。' : '仅显示前 200 条结果。';
+    p.textContent = hits === 0 ? t('search.noResults') : t('search.cap200');
     bookSearchList.appendChild(p);
   }
 }
@@ -1120,7 +1109,7 @@ async function refreshLibraryLocation() {
     const settings = await reverie.settingsGet();
     llPath.textContent = settings.effectiveLibraryRoot;
     llPath.title = settings.effectiveLibraryRoot
-      + (settings.libraryPathEnv ? '\n（由 REVERIE_LIBRARY 环境变量指定）' : '');
+      + (settings.libraryPathEnv ? '\n' + t('ll.envNote') : '');
   } catch { /* settings unavailable — leave blank */ }
 }
 
@@ -1129,13 +1118,13 @@ document.getElementById('btn-library-change').addEventListener('click', async ()
   if (!dest) return;
   const settings = await reverie.settingsGet();
   if (path0(dest) === path0(settings.effectiveLibraryRoot)) return;
-  if (!confirm(`将库位置设置为：\n${dest}\n\n保存后需要重启 Reverie 生效。\n（原库目录与其中的资料不会被移动或修改）`)) return;
+  if (!confirm(t('dialog.libraryChange', { path: dest }))) return;
   try {
     await reverie.settingsSetLibrary(dest);
-    if (confirm('库位置已保存。立即重启 Reverie 以使用新库？')) await reverie.appRelaunch();
+    if (confirm(t('dialog.libraryRelaunch'))) await reverie.appRelaunch();
     else await refreshLibraryLocation();
   } catch (err) {
-    alert('保存失败：' + String(err.message ?? err).slice(0, 120));
+    alert(t('ll.saveFailed') + String(err.message ?? err).slice(0, 120));
   }
   function path0(p) { return String(p).replace(/[\\/]+$/, '').toLowerCase(); }
 });
@@ -1150,16 +1139,16 @@ document.getElementById('feed-url').addEventListener('keydown', async (ev) => {
   const url = input.value.trim();
   if (!url) return;
   input.value = '';
-  input.placeholder = '正在订阅…';
+  input.placeholder = t('feed.adding');
   try {
     const result = await reverie.feedsAdd(url);
-    input.placeholder = result.duplicate ? '该订阅已存在' : '已订阅，刷新按钮获取文章';
+    input.placeholder = result.duplicate ? t('feed.duplicate') : t('feed.added');
   } catch (err) {
-    input.placeholder = '订阅失败';
-    alert('订阅失败：' + String(err.message ?? err).slice(0, 140) + '\n（Reverie 未修改任何本地资料）');
+    input.placeholder = t('feed.failed');
+    alert(t('feed.failed') + ': ' + String(err.message ?? err).slice(0, 140) + '\n' + t('feed.failedDetail'));
   }
   await renderFeedList();
-  setTimeout(() => { input.placeholder = 'RSS / Atom URL，回车添加'; }, 4000);
+  setTimeout(() => { input.placeholder = t('feed.add.ph'); }, 4000);
 });
 refreshLibraryLocation();
 refreshAppInfoLine();
@@ -1179,6 +1168,35 @@ async function refreshAppInfoLine() {
   } catch { /* optional */ }
 }
 
+document.getElementById('btn-logs-open').addEventListener('click', () => reverie.appOpenLogs());
+
+// ---- Post-1.0: appearance (theme / accent) + language switching ----
+(function initAppearance() {
+  const selLang = document.getElementById('sel-lang');
+  const selTheme = document.getElementById('sel-theme');
+  const savedLang = (() => { try { return localStorage.getItem('reverie.lang'); } catch { return null; } })();
+  if (savedLang) selLang.value = savedLang;
+  const savedTheme = (() => { try { return localStorage.getItem('reverie.theme'); } catch { return null; } })();
+  if (savedTheme) selTheme.value = savedTheme;
+  const savedAccent = (() => { try { return localStorage.getItem('reverie.accent'); } catch { return null; } })();
+  if (savedAccent) {
+    const dot = document.querySelector(`.accent-dot[data-accent='${savedAccent}']`);
+    if (dot) {
+      document.querySelectorAll('.accent-dot').forEach((d) => d.classList.remove('active'));
+      dot.classList.add('active');
+    }
+  }
+  selLang.addEventListener('change', () => window.I18N.setLang(selLang.value));
+  selTheme.addEventListener('change', () => window.Theme.setTheme(selTheme.value));
+  document.querySelectorAll('.accent-dot').forEach((dot) => {
+    dot.addEventListener('click', () => {
+      document.querySelectorAll('.accent-dot').forEach((d) => d.classList.remove('active'));
+      dot.classList.add('active');
+      window.Theme.setAccent(dot.dataset.accent);
+    });
+  });
+})();
+
 document.getElementById('btn-export-view-epub').addEventListener('click', () => { exportCurrentViewAsEpub(); });
 
 // ============================================================ doctor (M10)
@@ -1193,7 +1211,7 @@ document.getElementById('btn-doctor').addEventListener('click', async () => {
   hidePanel();
   document.getElementById('book-toc').hidden = true;
   doctorPanel.hidden = false;
-  doctorSummary.textContent = '正在扫描…';
+  doctorSummary.textContent = t('doctor.scanning');
   doctorFindings.textContent = '';
   doctorRepairBtn.hidden = true;
   doctorReportBtn.hidden = true;
@@ -1203,9 +1221,7 @@ document.getElementById('btn-doctor').addEventListener('click', async () => {
 
 function renderDoctorReport(report) {
   const s = report.summary;
-  doctorSummary.textContent = `文档 ${s.documents} · 检查 ${s.checks} · 发现 ${s.findings}`
-    + `（error ${s.bySeverity.error ?? 0} / warning ${s.bySeverity.warning ?? 0} / info ${s.bySeverity.info ?? 0}）`
-    + ` · 可安全修复 ${s.repairable}`;
+  doctorSummary.textContent = t('doctor.summary', { docs: s.documents, checks: s.checks, findings: s.findings, e: s.bySeverity.error ?? 0, w: s.bySeverity.warning ?? 0, i: s.bySeverity.info ?? 0, r: s.repairable });
   doctorFindings.textContent = '';
   for (const f of report.findings) {
     const li = document.createElement('li');
@@ -1222,16 +1238,15 @@ function renderDoctorReport(report) {
     if (f.checkId === 'annotation_corrupt' && f.path) {
       const repairBtn = document.createElement('button');
       repairBtn.type = 'button';
-      repairBtn.textContent = '记录级修复';
+      repairBtn.textContent = t('doctor.repairFindingBtn');
       repairBtn.addEventListener('click', async () => {
         const docDir = f.path;
         const preview = await reverie.doctorRepairFinding('annotation_corrupt', docDir, true);
-        if (!preview.changed && preview.dryRun) { alert('该文件没有需要修复的行。'); return; }
-        if (!confirm(`记录级修复 ${docDir}/annotations.jsonl：\n\n保留 ${preview.kept} 条有效标注，`
-          + `隔离 ${preview.quarantined} 条坏行（原文件自动备份，坏行可人工还原）。\n执行？`)) return;
+        if (!preview.changed && preview.dryRun) { alert(t('doctor.nothingToFix')); return; }
+        if (!confirm(t('doctor.annRepairConfirm', { dir: docDir, kept: preview.kept, q: preview.quarantined }))) return;
         const result = await reverie.doctorRepairFinding('annotation_corrupt', docDir, false);
         await rerunDoctorQuiet();
-        alert(`修复完成：保留 ${result.kept} 条，隔离 ${result.quarantined} 条。`);
+        alert(t('doctor.annRepairDone', { kept: result.kept, q: result.quarantined }));
       });
       li.appendChild(repairBtn);
     }
@@ -1239,7 +1254,7 @@ function renderDoctorReport(report) {
   }
   if (report.findings.length === 0) {
     const li = document.createElement('li');
-    li.textContent = '未发现问题，库是健康的。';
+    li.textContent = t('doctor.healthy');
     doctorFindings.appendChild(li);
   }
   doctorRepairBtn.hidden = s.repairable === 0;
@@ -1248,14 +1263,13 @@ function renderDoctorReport(report) {
 
 doctorRepairBtn.addEventListener('click', async () => {
   const preview = await reverie.doctorRepair(true);
-  const lines = (preview.actions ?? []).map((a) => `• ${a.action} — ${a.target}（影响 ${a.filesAffected} 项，风险：${a.risk}）`);
-  if (lines.length === 0) { alert('没有可执行的修复。'); return; }
-  if (!confirm(`将执行 ${lines.length} 项安全修复（用户源文件 0 改动，自动备份）：\n\n${lines.join('\n')}\n\n执行？`)) return;
+  const lines = (preview.actions ?? []).map((a) => t('doctor.actionLine', { action: a.action, target: a.target, n: a.filesAffected, risk: a.risk }));
+  if (lines.length === 0) { alert(t('doctor.noActions')); return; }
+  if (!confirm(t('doctor.repairConfirm', { n: lines.length, list: lines.join('\n') }))) return;
   const result = await reverie.doctorRepair(false);
   doctorReport = { ...doctorReport, summary: result.afterSummary ?? doctorReport.summary };
   await rerunDoctorQuiet();
-  alert(`修复完成：${(result.executed ?? []).map((e) => e.action).join('、') || '无'}。`
-    + (result.remainingFindings > 0 ? `\n仍有 ${result.remainingFindings} 项需要人工处理（见列表）。` : '\n库现在是健康的。'));
+  alert(t('doctor.repairDone', { actions: (result.executed ?? []).map((e) => e.action).join(', ') || t('doctor.none'), remaining: result.remainingFindings }));
 });
 
 async function rerunDoctorQuiet() {
@@ -1271,13 +1285,13 @@ doctorReportBtn.addEventListener('click', async () => {
   const md = `# Reverie Doctor 报告\n\n- 时间：${doctorReport.generatedAt}\n- 文档：${doctorReport.summary.documents}\n\n`
     + doctorReport.findings.map((f) => `- [${f.severity.toUpperCase()}] ${f.checkId} — ${f.problem} (${f.path}) → ${f.suggestedAction}`).join('\n');
   await reverie.writeReport(dest, `DoctorReport-${new Date().toISOString().slice(0, 10)}.md`, md);
-  els.queueHint.textContent = 'Doctor 报告已导出。';
+  els.queueHint.textContent = t('doctor.reportDone');
   setTimeout(() => { els.queueHint.textContent = ''; }, 4000);
 });
 document.getElementById('btn-reindex').addEventListener('click', async () => {
   const { count } = await reverie.libraryReindex();
   const { total } = await reverie.searchRefresh();
-  els.queueHint.textContent = `索引已重建（文章 ${count} 篇，搜索 ${total} 条）`;
+  els.queueHint.textContent = t('reindex.done', { count, total });
   setTimeout(() => { els.queueHint.textContent = ''; }, 2500);
 });
 document.getElementById('btn-annotations').addEventListener('click', () => { panel.hidden = !panel.hidden; });
@@ -1328,14 +1342,14 @@ document.getElementById('btn-export-md').addEventListener('click', async () => {
   const dest = await reverie.pickExportDir();
   if (!dest) return;
   const r = await reverie.exportDocuments([currentDoc.documentId], 'markdown', dest);
-  alert(r.failed_count === 0 ? 'Markdown 导出完成' : '导出失败 ' + r.failed_count + ' 篇');
+  alert(r.failed_count === 0 ? t('export.mdDone') : t('export.mdFailed', { n: r.failed_count }));
 });
 document.getElementById('btn-export-epub').addEventListener('click', async () => {
   if (!currentDoc) return;
   const dest = await reverie.pickExportDir();
   if (!dest) return;
   const r = await reverie.exportDocuments([currentDoc.documentId], 'epub', dest);
-  alert(r.failed_count === 0 ? 'EPUB 导出完成' : '导出失败 ' + r.failed_count + ' 篇');
+  alert(r.failed_count === 0 ? t('export.epubDone') : t('export.epubFailed', { n: r.failed_count }));
 });
 document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape' && !els.reader.hidden) { els.reader.hidden = true; els.library.hidden = false; showLibrary(); }
@@ -1345,3 +1359,11 @@ reverie.onLibraryChanged(() => { if (!els.library.hidden) showLibrary(); });
 reverie.onQueueChanged(() => { if (!els.library.hidden) showLibrary(); });
 
 showLibrary();
+
+// i18n: re-render dynamic surfaces when the language changes (Post-1.0)
+document.addEventListener('reverie:langchanged', () => {
+  window.I18N.applyStatic(document.getElementById('doctor-panel'));
+  window.I18N.applyStatic(document.getElementById('book-toc'));
+  window.I18N.applyStatic(document.getElementById('annotation-panel'));
+  if (!els.library.hidden) showLibrary();
+});

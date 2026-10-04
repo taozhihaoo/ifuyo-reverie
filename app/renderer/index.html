@@ -10,43 +10,60 @@
 <body>
 <header id="topbar">
   <h1 id="brand">Reverie</h1>
-  <input id="search-input" type="text" placeholder="搜索全部资料…（Ctrl+K，支持 tag: is: author: 过滤）" spellcheck="false">
+  <input id="search-input" type="text" data-i18n-ph="topbar.search.ph" spellcheck="false">
   <span id="queue-hint" title="Capture queue"></span>
   <span class="spacer"></span>
-  <button id="btn-reindex" type="button">重建索引</button>
+  <div id="appearance">
+    <select id="sel-lang" class="select-compact" data-i18n-title="topbar.lang">
+      <option value="zh">中文</option>
+      <option value="en">English</option>
+    </select>
+    <select id="sel-theme" class="select-compact" data-i18n-title="topbar.theme">
+      <option value="light" data-i18n="theme.light">浅色</option>
+      <option value="dark" data-i18n="theme.dark">深色</option>
+      <option value="system" data-i18n="theme.system">跟随系统</option>
+    </select>
+    <div id="accent-dots" data-i18n-title="topbar.theme">
+      <button class="accent-dot" data-accent="mist" type="button" title="Mist"></button>
+      <button class="accent-dot" data-accent="sage" type="button" title="Sage"></button>
+      <button class="accent-dot" data-accent="mauve" type="button" title="Mauve"></button>
+      <button class="accent-dot" data-accent="apricot" type="button" title="Apricot"></button>
+    </div>
+  </div>
+  <button id="btn-reindex" type="button" data-i18n="topbar.reindex">重建索引</button>
 </header>
 
 <div id="layout">
   <nav id="sidebar">
-    <button data-view="all" class="active" type="button">全部资料 <span class="count" data-count="all">0</span></button>
-    <button data-view="inbox" type="button">Inbox <span class="count" data-count="inbox">0</span></button>
-    <button data-view="unread" type="button">未读 <span class="count" data-count="unread">0</span></button>
-    <button data-view="favorites" type="button">收藏 <span class="count" data-count="favorites">0</span></button>
-    <button data-view="recent" type="button">最近阅读</button>
-    <button data-view="daily-review" type="button">每日回顾</button>
-    <h3>订阅源</h3>
+    <button data-view="all" class="active" type="button"><span data-i18n="view.all">全部资料</span> <span class="count" data-count="all">0</span></button>
+    <button data-view="inbox" type="button"><span data-i18n="view.inbox">Inbox</span> <span class="count" data-count="inbox">0</span></button>
+    <button data-view="unread" type="button"><span data-i18n="view.unread">未读</span> <span class="count" data-count="unread">0</span></button>
+    <button data-view="favorites" type="button"><span data-i18n="view.favorites">收藏</span> <span class="count" data-count="favorites">0</span></button>
+    <button data-view="recent" type="button"><span data-i18n="view.recent">最近阅读</span></button>
+    <button data-view="daily-review" type="button"><span data-i18n="view.daily-review">每日回顾</span></button>
+    <h3 data-i18n="sidebar.feeds">订阅源</h3>
     <div id="feed-list"></div>
     <div id="feed-add">
-      <input id="feed-url" type="text" placeholder="RSS / Atom URL，回车添加" spellcheck="false">
+      <input id="feed-url" type="text" data-i18n-ph="feed.add.ph" spellcheck="false">
     </div>
-    <button id="btn-add-epub" type="button" class="facet">+ 添加 EPUB</button>
-    <button id="btn-add-pdf" type="button" class="facet">+ 添加 PDF</button>
-    <button id="btn-doctor" type="button" class="facet">🩺 Doctor 体检</button>
+    <button id="btn-add-epub" type="button" class="facet" data-i18n="btn.addEpub">+ 添加 EPUB</button>
+    <button id="btn-add-pdf" type="button" class="facet" data-i18n="btn.addPdf">+ 添加 PDF</button>
+    <button id="btn-doctor" type="button" class="facet" data-i18n="btn.doctor">🩺 Doctor 体检</button>
+    <h3 data-i18n="sidebar.tags">标签</h3>
+    <div id="tag-facets"></div>
     <div id="library-location">
-      <p class="ll-label">库位置</p>
+      <p class="ll-label" data-i18n="ll.label">库位置</p>
       <p id="ll-path" class="ll-path" title=""></p>
       <div class="ll-actions">
-        <button id="btn-library-change" type="button" class="facet">更改…</button>
-        <button id="btn-library-open" type="button" class="facet">打开文件夹</button>
-        <button id="btn-logs-open" type="button" class="facet">日志</button>
+        <button id="btn-library-change" type="button" class="facet" data-i18n="ll.change">更改…</button>
+        <button id="btn-library-open" type="button" class="facet" data-i18n="ll.open">打开文件夹</button>
+        <button id="btn-logs-open" type="button" class="facet" data-i18n="ll.logs">日志</button>
       </div>
     </div>
-    <h3>标签</h3>
-    <div id="tag-facets"></div>
   </nav>
 
   <main id="library-view">
-    <button id="btn-export-view-epub" type="button" hidden>导出 EPUB</button>
+    <button id="btn-export-view-epub" type="button" hidden></button>
     <ul id="article-list"></ul>
     <p id="library-empty" hidden></p>
   </main>
@@ -57,35 +74,35 @@
 
   <article id="reader-view" hidden>
     <header>
-      <button id="btn-back" type="button">← 返回</button>
-      <button id="btn-annotations" type="button">标注 (<span id="annotation-count">0</span>)</button>
-      <button id="btn-toc" type="button">目录</button>
-      <button id="btn-bookmark" type="button" hidden>书签</button>
+      <button id="btn-back" type="button" data-i18n="reader.back">← 返回</button>
+      <button id="btn-annotations" type="button"><span data-i18n="reader.annotations">标注</span> (<span id="annotation-count">0</span>)</button>
+      <button id="btn-toc" type="button" data-i18n="reader.toc">目录</button>
+      <button id="btn-bookmark" type="button" hidden data-i18n="reader.bookmark">书签</button>
       <div id="pdf-controls" hidden>
-        <button id="pdf-prev" type="button" title="上一页（←）">◀</button>
+        <button id="pdf-prev" type="button" data-i18n-title="pdf.prev">◀</button>
         <span id="pdf-indicator">第 <span id="pdf-cur">1</span> / <span id="pdf-total">1</span> 页 <span id="pdf-label"></span></span>
-        <button id="pdf-next" type="button" title="下一页（→）">▶</button>
-        <button id="pdf-zoom-out" type="button" title="缩小">－</button>
+        <button id="pdf-next" type="button" data-i18n-title="pdf.next">▶</button>
+        <button id="pdf-zoom-out" type="button" data-i18n-title="pdf.zoomOut">－</button>
         <span id="pdf-zoom-label">100%</span>
-        <button id="pdf-zoom-in" type="button" title="放大">＋</button>
+        <button id="pdf-zoom-in" type="button" data-i18n-title="pdf.zoomIn">＋</button>
       </div>
       <div id="tts-controls" hidden>
-        <button id="tts-prev" type="button" title="上一句">⏮</button>
-        <button id="tts-play" type="button" title="朗读（从当前位置）">▶</button>
-        <button id="tts-next" type="button" title="下一句">⏭</button>
-        <button id="tts-stop" type="button" title="停止">■</button>
-        <select id="tts-rate" title="语速">
+        <button id="tts-prev" type="button" data-i18n-title="tts.prev">⏮</button>
+        <button id="tts-play" type="button" data-i18n-title="tts.play">▶</button>
+        <button id="tts-next" type="button" data-i18n-title="tts.next">⏭</button>
+        <button id="tts-stop" type="button" data-i18n-title="tts.stop">■</button>
+        <select id="tts-rate" data-i18n-title="tts.rate">
           <option value="0.75">0.75x</option>
           <option value="1" selected>1x</option>
           <option value="1.25">1.25x</option>
           <option value="1.5">1.5x</option>
           <option value="2">2x</option>
         </select>
-        <select id="tts-voice" title="语音"><option value="">自动语音</option></select>
+        <select id="tts-voice" data-i18n-title="tts.voice"><option value="">自动语音</option></select>
         <span id="tts-status"></span>
       </div>
-      <button id="btn-export-md" type="button">导出 MD</button>
-      <button id="btn-export-epub" type="button">导出 EPUB</button>
+      <button id="btn-export-md" type="button" data-i18n="reader.exportMd">导出 MD</button>
+      <button id="btn-export-epub" type="button" data-i18n="reader.exportEpub">导出 EPUB</button>
       <div id="reader-meta"></div>
     </header>
     <h1 id="reader-title"></h1>
@@ -93,37 +110,38 @@
   </article>
 
   <aside id="book-toc" hidden>
-    <h2>目录</h2>
+    <h2 data-i18n="toc.title">目录</h2>
     <ul id="book-toc-list"></ul>
-    <h2>书内搜索</h2>
-    <input id="book-search" type="text" placeholder="在本书中查找…" spellcheck="false">
+    <h2 data-i18n="toc.search">书内搜索</h2>
+    <input id="book-search" type="text" data-i18n-ph="toc.search.ph" spellcheck="false">
     <ul id="book-search-results"></ul>
   </aside>
   <aside id="annotation-panel" hidden>
-    <h2>标注</h2>
+    <h2 data-i18n="ann.panel">标注</h2>
     <ul id="annotation-list"></ul>
   </aside>
   <aside id="doctor-panel" hidden>
-    <h2>Doctor 体检</h2>
+    <h2 data-i18n="doctor.title">Doctor 体检</h2>
     <p id="doctor-summary"></p>
     <ul id="doctor-findings"></ul>
     <div id="doctor-actions">
-      <button id="btn-doctor-repair" type="button" hidden>安全修复（预览后执行）</button>
-      <button id="btn-doctor-report" type="button" hidden>导出报告 (.md)</button>
+      <button id="btn-doctor-repair" type="button" hidden data-i18n="doctor.repair">安全修复（预览后执行）</button>
+      <button id="btn-doctor-report" type="button" hidden data-i18n="doctor.report">导出报告 (.md)</button>
     </div>
   </aside>
 </div>
 
 <div id="selection-popup" hidden>
-  <button id="popup-highlight" type="button">高亮</button>
-  <button id="popup-read" type="button">朗读所选</button>
-  <button id="popup-repair" type="button">修复此标注</button>
+  <button id="popup-highlight" type="button" data-i18n="popup.highlight">高亮</button>
+  <button id="popup-read" type="button" data-i18n="popup.read">朗读所选</button>
+  <button id="popup-repair" type="button" data-i18n="popup.repair">修复此标注</button>
 </div>
 
+<script src="i18n.js"></script>
+<script src="theme.js"></script>
 <script src="reader-anchor.js"></script>
 <script src="tts-controller.js"></script>
 <script src="app.js"></script>
 <script type="module" src="pdf-view.js"></script>
 <script type="module" src="tts-view.js"></script>
-</body>
-</html>
+</body></html>
