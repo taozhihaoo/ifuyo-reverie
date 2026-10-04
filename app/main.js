@@ -362,8 +362,9 @@ function registerIpc() {
   });
   ipcMain.handle('book:add-bookmark', async (_e, { documentId, location }) => {
     const loaded = await loadArticle(documentId);
-    // books use {chapter_index}, PDFs use {page_index} — same annotation type
-    if (loaded.type !== 'book' && loaded.type !== 'pdf') throw new Error('bookmarks are only supported for paged readers');
+    // bookmarks work for every paged/scrollable reader: books use
+    // {chapter_index}, PDFs {page_index}, articles {offset} — the locator
+    // shape follows the reader's own location model (M2 reader-location)
     const { annotation } = await loaded.service.createBookmark({ location });
     return annotation;
   });

@@ -4,72 +4,79 @@
 
 > Your library is a folder, not an account.
 
-Reverie 把网页、RSS、EPUB、PDF、Markdown、划线与笔记保存为属于用户自己的、
-可迁移、可长期维护的阅读档案。核心闭环：
+Reverie 把网页、RSS、EPUB、PDF、划线与笔记保存为属于用户自己的、可迁移、
+可长期维护的阅读档案。核心闭环：
 
 ```text
-发现 → 保存 → 阅读 → 划线 → 记录 → 归档 → 搜索 → 再次阅读
+发现 → 保存 → 阅读 → 划线 → 记录 → 书签 → 归档 → 搜索 → 再次阅读 → 听读
 ```
 
-## 当前状态
+## 当前状态：Reverie 1.0
 
-项目处于 **M0 — Foundation & Risk Spikes**（基础设施与风险验证）阶段。
+M0–M12 全部完成。**1.0 能力**：
 
-M0 不做产品功能，只回答一个问题：
-在正式开发之前，把最容易导致返工的技术风险验证清楚
-（正文提取 / Annotation 定位 / EPUB 引擎 / PDF 路线 / 文件原生数据 / Native Messaging / 安全基线）。
+- **阅读**：Web 文章（正文提取+净化）、RSS/Atom 订阅、EPUB 2/3、PDF——统一
+  Reader Shell，进度跨会话恢复
+- **标注**：划线高亮、笔记、位置书签；定位失败转为 Orphaned，绝不静默删除
+- **搜索**：标题/作者/正文/标注/标签/URL，`tag:` `is:` `in:` `author:` 过滤语法
+- **TTS 有声阅读**：Windows 本地语音、语速、语音选择、句子级定位跟随
+- **导入/导出**：Pocket / Wallabag / Raindrop 导入（幂等）；Markdown / EPUB 3 /
+  Metadata / Highlights 导出；每日回顾
+- **数据安全**：文件即真相（JSON/Markdown/JSONL/原始文件）；索引可重建；
+  原子写入；Doctor 体检与分级修复；未来格式只读保护；整库可复制迁移
+- **Windows 产品化**：Portable / NSIS 安装包、单实例、文件参数打开、有界日志
 
-阶段文档见 [docs/](docs/)：
+## 快速开始
+
+```bash
+npm install          # Node >= 22
+npm run app          # 开发模式启动
+```
+
+发布构建（Windows）：
+
+```bash
+npm run package:portable
+# → artifacts/Reverie-1.0.0-portable-win-x64/（Reverie.exe）+ .zip + checksums
+```
+
+把 `Reverie-1.0.0-portable-win-x64/` 复制到任意 Windows x64 机器运行即可；
+用户资料保存在自选的库目录（默认 `%LOCALAPPDATA%\Reverie\library`），
+与应用目录完全分离——复制库文件夹即完成备份与迁移。
+
+## 验证
+
+```bash
+npm test               # 309 项测试
+npm run doctor         # 库健康体检（--repair 执行安全修复）
+npm run smoke:pdf      # 真机冒烟：PDF 全链路
+npm run smoke:tts      # 真机冒烟：TTS 旅程
+npm run smoke:epub     # 真机冒烟：EPUB 导出
+npm run smoke:doctor   # 真机冒烟：损坏注入→修复
+npm run smoke:release  # 真机冒烟：打包产物
+npm run smoke:journey  # 真机冒烟：完整用户旅程
+```
+
+## 文档
 
 | 文档 | 内容 |
 | --- | --- |
-| [docs/M6-STATUS.md](docs/M6-STATUS.md) | M6 完成报告（EPUB Reader） |
-| [docs/M5-STATUS.md](docs/M5-STATUS.md) | M5 完成报告（导入导出与每日回顾） |
-| [docs/IMPORT.md](docs/IMPORT.md) | 导入：来源/格式/去重/幂等/Provenance |
-| [docs/EXPORT.md](docs/EXPORT.md) | 导出：Markdown/EPUB/Metadata/Highlights |
-| [docs/MIGRATION.md](docs/MIGRATION.md) | 数据流与保留/丢失透明说明 |
-| [docs/DAILY-REVIEW.md](docs/DAILY-REVIEW.md) | 每日回顾：队列/策略/状态 |
-| [docs/M4-STATUS.md](docs/M4-STATUS.md) | M4 完成报告（RSS / Feed 订阅） |
-| [docs/RSS.md](docs/RSS.md) | RSS 内容规则：格式/归一化/去重/安全 |
-| [docs/FEEDS.md](docs/FEEDS.md) | 订阅管理：模型/持久化/操作规则 |
-| [docs/NETWORK.md](docs/NETWORK.md) | 网络策略：超时/重定向/重试/私网/取消 |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | 关键设计决定记录 |
-| [docs/PROGRESS.md](docs/PROGRESS.md) | 里程碑进度清单 |
-| [docs/M3-STATUS.md](docs/M3-STATUS.md) | M3 完成报告（搜索与资料库） |
-| [docs/SEARCH.md](docs/SEARCH.md) | 全局搜索：字段/语法/排序/导航 |
-| [docs/LIBRARY.md](docs/LIBRARY.md) | 资料库视图：Inbox/Recent/Favorites/未读/标签 |
-| [docs/USER-STATE.md](docs/USER-STATE.md) | 用户状态：read/favorite/inbox/tags/last_opened |
-| [docs/SEARCH-FORMAT.md](docs/SEARCH-FORMAT.md) | 派生搜索索引格式 |
-| [docs/PERF.md](docs/PERF.md) | 性能基准（真实测量） |
-| [docs/M5-STATUS.md](docs/M5-STATUS.md) | M5 完成报告（导入导出与每日回顾） |
-| [docs/M2-STATUS.md](docs/M2-STATUS.md) | M2 完成报告（Annotation Core） |
-| [docs/ANNOTATIONS.md](docs/ANNOTATIONS.md) | 标注模型、生命周期与 Reader 集成 |
-| [docs/ANNOTATION-FORMAT.md](docs/ANNOTATION-FORMAT.md) | annotations.jsonl 格式规范 |
-| [docs/ANNOTATION-RESOLUTION.md](docs/ANNOTATION-RESOLUTION.md) | 锚点定位与恢复策略 |
-| [docs/M1-STATUS.md](docs/M1-STATUS.md) | M1 完成报告（Web Capture：已实现/已验证/限制/风险/推迟） |
-| [docs/CAPTURE.md](docs/CAPTURE.md) | 采集子系统手册：协议、队列、管线、重复判定、验收清单 |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块边界与依赖方向 |
-| [docs/TESTING.md](docs/TESTING.md) | 测试地图与基建模式 |
-| [docs/M0-STATUS.md](docs/M0-STATUS.md) | M0 报告（现状、架构边界、Spike 结论） |
-| [docs/M0-RISKS.md](docs/M0-RISKS.md) | 风险清单（R1–R9）与验证状态 |
+| [docs/WINDOWS.md](docs/WINDOWS.md) | 安装/路径/集成/备份（用户指南） |
+| [docs/RECOVERY-AND-DOCTOR.md](docs/RECOVERY-AND-DOCTOR.md) | 恢复语义与 Doctor |
+| [docs/EPUB-EXPORT.md](docs/EPUB-EXPORT.md) / [docs/TTS.md](docs/TTS.md) / [docs/PDF.md](docs/PDF.md) | 能力说明 |
+| [docs/M12-STATUS.md](docs/M12-STATUS.md) / [docs/M12-FINAL-AUDIT.md](docs/M12-FINAL-AUDIT.md) | 1.0 最终审计（Gate A–J） |
+| [docs/POST-1.0.md](docs/POST-1.0.md) | 已知问题与未来路线 |
+| [docs/FINAL-ARCHITECTURE.md](docs/FINAL-ARCHITECTURE.md) | 最终架构总览 |
+| [docs/DECISIONS.md](docs/DECISIONS.md) / [docs/PROGRESS.md](docs/PROGRESS.md) | 决定记录 / 里程碑 |
 | [docs/FORMAT.md](docs/FORMAT.md) | Library 文件格式规范（Source of Truth） |
-| [docs/SECURITY.md](docs/SECURITY.md) | 安全基线与威胁模型 |
 | [THIRD_PARTY.md](THIRD_PARTY.md) | 第三方依赖与许可证审计 |
 
-## 开发
-
-```bash
-npm install        # 安装依赖（Node >= 22）
-npm test           # 运行全部测试（node:test）
-npm run spike:extraction   # 正文提取 Spike 评估
-npm run spike:pdf          # PDF.js Spike（Node 侧）
-npm run fixtures:pdf       # 重新生成 PDF 测试文件
-npm run fixtures:epub      # 重新生成 EPUB 测试文件
-```
+其余阶段文档（M0–M11 STATUS 及子系统手册）见 [docs/](docs/)。
 
 ## 原则
 
-- **文件是真相**：SQLite / 索引 / 缓存只是派生数据，可随时重建。
-- **数据属于用户**：开放格式（JSON / Markdown / JSONL / 原始文件），可备份、可迁移、可脱离 Reverie 使用。
-- **本地优先**：网络只用于保存网页与获取 RSS，不制造云依赖。
+- **文件是真相**：索引/缓存/设置只是派生数据，可随时重建。
+- **数据属于用户**：开放格式（JSON / Markdown / JSONL / 原始文件），可备份、可迁移、
+  可脱离 Reverie 使用；卸载或升级永不触碰用户库。
+- **本地优先**：网络只用于保存网页与获取 RSS，不制造云依赖；无账号、无遥测。
 - **阅读优先**：一切设计服从长时间阅读的舒适性、稳定性、可恢复性。

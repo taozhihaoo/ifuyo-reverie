@@ -37,6 +37,8 @@ const env = {
   REVERIE_SEARCH_INDEX: path.join(tmp, 'search-index.json'),
 };
 process.env.REVERIE_LIBRARY = env.REVERIE_LIBRARY;
+process.env.REVERIE_HOME = env.REVERIE_HOME; // out-of-band index ops must not pollute the dev real index
+process.env.REVERIE_SEARCH_INDEX = env.REVERIE_SEARCH_INDEX;
 const { addPdfBook } = await importFromRoot('src', 'reader', 'pdf-library.js');
 await addPdfBook(env.REVERIE_LIBRARY, path.join(root, 'tests', 'fixtures', 'pdf', 'text.pdf'), { title: 'smoke-text' });
 await addPdfBook(env.REVERIE_LIBRARY, path.join(root, 'tests', 'fixtures', 'pdf', 'outline.pdf'), { title: 'smoke-outline' });
