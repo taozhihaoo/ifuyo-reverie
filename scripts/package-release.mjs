@@ -84,11 +84,17 @@ for (const pkgDir of prodPkgs) {
   await copyDir(pkgDir, path.join(runtimeRoot, rel));
 }
 
-// 5. zip (DEFLATE; streaming per-file, deterministic order via sorted walk)
+// 5. zip (DEFLATE; entries carry the build date so archives don't show the
+// 1980 DOS epoch; SOURCE_DATE_EPOCH env honored for reproducible builds)
 const appFiles = (await walkFiles(appDir)).sort();
 const zipPath = path.join(outRoot, `Reverie-${version}-portable-win-x64.zip`);
 await fsp.rm(zipPath, { force: true });
 {
+  const buildTime = process.env.SOURCE_DATE_EPOCH
+    ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000)
+    : new Date();
+  const dosTime = ((buildTime.getHours() << 11) | (buildTime.getMinutes() << 5) | Math.floor(buildTime.getSeconds() / 2)) & 0xffff;
+  const dosDate = (((buildTime.getFullYear() - 1980) << 9) | ((buildTime.getMonth() + 1) << 5) | buildTime.getDate()) & 0xffff;
   const chunks = [];
   const central = [];
   let offset = 0;
@@ -119,6 +125,8 @@ await fsp.rm(zipPath, { force: true });
     dv.setUint16(4, 20, true);
     dv.setUint16(6, 0x0800, true);
     dv.setUint16(8, 8, true); // DEFLATE
+    dv.setUint16(10, dosTime, true); // mod time
+    dv.setUint16(12, dosDate, true); // mod date
     dv.setUint32(14, crc, true);
     dv.setUint32(18, compressed.length, true);
     dv.setUint32(22, data.length, true);
@@ -133,6 +141,8 @@ await fsp.rm(zipPath, { force: true });
     cdv.setUint16(6, 20, true);
     cdv.setUint16(8, 0x0800, true);
     cdv.setUint16(10, 8, true);
+    cdv.setUint16(12, dosTime, true);
+    cdv.setUint16(14, dosDate, true);
     cdv.setUint32(16, crc, true);
     cdv.setUint32(20, compressed.length, true);
     cdv.setUint32(24, data.length, true);
