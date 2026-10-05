@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
+
+  package:
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Package portable build
+        run: npm run package:portable
+
+      - name: Verify release artifacts
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "artifacts/Reverie-*-portable-win-x64/Reverie.exe" -ErrorAction SilentlyContinue
+          if (!$exe) { throw "Reverie.exe missing" }
+          if (!(Test-Path "artifacts/checksums.txt")) { throw "checksums.txt missing" }
+          if (!(Test-Path "artifacts/release-manifest.json")) { throw "release-manifest.json missing" }
+          Get-Content artifacts/checksums.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Reverie-portable
+          path: |
+            artifacts/*.zip
+            artifacts/checksums.txt
+            artifacts/release-manifest.json
+          retention-days: 14
