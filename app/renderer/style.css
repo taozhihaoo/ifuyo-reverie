@@ -17,6 +17,9 @@
   --code-bg: #f3f1ec;
   --quote-fg: #57524b;
   --paper: #ffffff;
+  --capfail-bg: #fbf3ea;
+  --capfail-line: #ecd9c3;
+  --capfail-why: #a4653a;
   --shadow-card: 0 1px 3px rgba(70, 60, 45, 0.06), 0 4px 14px rgba(70, 60, 45, 0.05);
   --shadow-pop: 0 6px 24px rgba(70, 60, 45, 0.14);
   --scrollbar: #d8d3c8;
@@ -36,6 +39,9 @@
   --code-bg: #1c2028;
   --quote-fg: #b3b0a8;
   --paper: #f7f5f0;
+  --capfail-bg: #33302a;
+  --capfail-line: #5a4c38;
+  --capfail-why: #d3a276;
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 8px 28px rgba(0, 0, 0, 0.5);
   --scrollbar: #454b58;
@@ -165,6 +171,21 @@ select:focus { outline: none; border-color: var(--accent); }
   border-radius: 8px; padding: 6px 14px; font-size: 13px;
 }
 #library-view #btn-export-view-epub:hover { background: var(--accent-strong); color: var(--bg-elev); }
+#capture-failures {
+  margin: 4px 0 10px; padding: 10px 12px;
+  background: var(--capfail-bg); border: 1px solid var(--capfail-line);
+  border-radius: 10px; font-size: 12.5px; line-height: 1.5;
+}
+.capfail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.capfail-title { font-weight: 600; color: var(--capfail-why); }
+.capfail-clear {
+  border: 1px solid var(--capfail-line); background: transparent; color: var(--fg-muted);
+  border-radius: 7px; padding: 2px 9px; font-size: 12px; cursor: pointer;
+}
+.capfail-clear:hover { color: var(--fg); background: var(--bg-hover); }
+.capfail-row { margin-top: 7px; display: flex; flex-direction: column; gap: 1px; }
+.capfail-what { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capfail-why { color: var(--capfail-why); font-size: 12px; }
 #article-list { list-style: none; margin: 0; padding: 0; }
 #article-list li {
   padding: 13px 12px;

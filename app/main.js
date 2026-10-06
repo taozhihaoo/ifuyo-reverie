@@ -11,7 +11,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { promises as fsp, watch as fsWatch } from 'node:fs';
 import { getLibraryRoot, getQueueDir } from '../src/core/paths.js';
 import { loadIndex, rebuildIndex, loadReadState, setReadState, deleteArticle } from '../src/library/index.js';
-import { listJobs, recoverOnStartup, JOB_STATUSES } from '../src/capture/queue.js';
+import { listJobs, recoverOnStartup, clearFailed, JOB_STATUSES } from '../src/capture/queue.js';
 import { processQueue } from '../src/capture/worker.js';
 import { verifyArticleDir } from '../src/library/persist.js';
 import { createAnnotationService } from '../src/annotation/service.js';
@@ -673,6 +673,11 @@ function registerIpc() {
   });
 
   ipcMain.handle('queue:list', async () => listJobs(queueDir));
+  ipcMain.handle('queue:clear-failed', async () => {
+    const removed = await clearFailed(queueDir);
+    broadcast('queue:changed');
+    return removed;
+  });
   ipcMain.handle('queue:process', async () => {
     await runQueueIfIdle();
     return { ok: true };

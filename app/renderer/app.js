@@ -130,6 +130,7 @@ const els = {
   meta: document.getElementById('reader-meta'),
   content: document.getElementById('reader-content'),
   queueHint: document.getElementById('queue-hint'),
+  captureFailures: document.getElementById('capture-failures'),
 };
 const searchInput = document.getElementById('search-input');
 const searchResults = document.getElementById('search-results');
@@ -310,6 +311,69 @@ function prevReviewItem() {
   if (reviewIndex > 0) { reviewIndex--; showReviewItem(); }
 }
 
+// Failed captures were invisible in both ends (browser badge flashes 4s,
+// app showed nothing) — user right-clicked a portal home page with no
+// article body and had no way to know why nothing appeared. Surface the
+// most recent FAILED jobs as a dismissible banner above the list.
+const CAPTURE_ERROR_TEXT = {
+  EXTRACTION_FAILED: () => t('capture.errExtract'),
+  NETWORK_ERROR: () => t('capture.errNetwork'),
+};
+function relTime(iso) {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return t('capture.justNow');
+  if (mins < 60) return t('capture.minAgo', { n: mins });
+  if (mins < 1440) return t('capture.hourAgo', { n: Math.floor(mins / 60) });
+  return t('capture.dayAgo', { n: Math.floor(mins / 1440) });
+}
+async function refreshCaptureFailures() {
+  const box = els.captureFailures;
+  if (!box) return;
+  let jobs = [];
+  try {
+    jobs = (await reverie.queueList()).filter((j) => j.status === 'failed');
+  } catch { return; }
+  if (jobs.length === 0) {
+    box.hidden = true;
+    box.replaceChildren();
+    return;
+  }
+  jobs.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+  const shown = jobs.slice(0, 3);
+  const head = document.createElement('div');
+  head.className = 'capfail-head';
+  const title = document.createElement('span');
+  title.className = 'capfail-title';
+  title.textContent = t('capture.failedTitle', { n: jobs.length });
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.className = 'capfail-clear';
+  clearBtn.textContent = t('capture.clearFailed');
+  clearBtn.addEventListener('click', async () => {
+    try { await reverie.queueClearFailed(); } catch { /* banner refreshes on next queue:changed */ }
+  });
+  head.append(title, clearBtn);
+  const frag = document.createDocumentFragment();
+  frag.append(head);
+  for (const job of shown) {
+    const row = document.createElement('div');
+    row.className = 'capfail-row';
+    const what = document.createElement('span');
+    what.className = 'capfail-what';
+    let host = job.request.url;
+    try { host = new URL(job.request.url).host; } catch { /* keep full url */ }
+    what.textContent = `${job.request.title || host} · ${host} · ${relTime(job.updated_at)}`;
+    const why = document.createElement('span');
+    why.className = 'capfail-why';
+    const code = job.last_error?.error_code ?? 'UNKNOWN_ERROR';
+    why.textContent = CAPTURE_ERROR_TEXT[code]?.() ?? t('capture.errGeneric', { code });
+    row.append(what, why);
+    frag.append(row);
+  }
+  box.replaceChildren(frag);
+  box.hidden = false;
+}
+
 async function showLibrary() {
   els.reader.hidden = true;
   els.library.hidden = false;
@@ -318,6 +382,7 @@ async function showLibrary() {
   const doctorPanelEl = document.getElementById('doctor-panel');
   if (doctorPanelEl) doctorPanelEl.hidden = true;
   hidePopup();
+  refreshCaptureFailures();
 
   const { results, total, counts, tag_facets } = await reverie.libraryView({
     view: currentView, query: searchInput.value.trim(), tags: currentTags,

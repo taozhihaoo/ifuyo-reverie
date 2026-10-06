@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('reverie', {
   articleResolvePath: (documentId, relative) => ipcRenderer.invoke('article:resolve-path', { documentId, relative }),
   libraryReindex: () => ipcRenderer.invoke('library:reindex'),
   queueList: () => ipcRenderer.invoke('queue:list'),
+  queueClearFailed: () => ipcRenderer.invoke('queue:clear-failed'),
   queueProcess: () => ipcRenderer.invoke('queue:process'),
   openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
   annotationCreate: (documentId, anchor, note) => ipcRenderer.invoke('annotation:create', { documentId, anchor, note }),

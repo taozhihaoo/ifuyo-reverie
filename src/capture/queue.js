@@ -103,6 +103,20 @@ export async function recoverOnStartup(queueDir, { now = new Date().toISOString(
   return recovered;
 }
 
+/** Remove terminal-FAILED job files (user-cleared failure history). Failed
+ * jobs are otherwise kept forever for inspection; successful/duplicate jobs
+ * and anything still queued/running are never touched. Returns the count. */
+export async function clearFailed(queueDir) {
+  const jobs = await listJobs(queueDir);
+  let removed = 0;
+  for (const job of jobs) {
+    if (job.status !== JOB_STATUSES.FAILED) continue;
+    await fsp.rm(jobPath(queueDir, job.request_id), { force: true });
+    removed += 1;
+  }
+  return removed;
+}
+
 /** Pop the oldest queued job, marking it running. Returns null if empty. */
 export async function claimNext(queueDir, { now = new Date().toISOString() } = {}) {
   const jobs = await listJobs(queueDir);
