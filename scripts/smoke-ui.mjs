@@ -134,15 +134,22 @@ await cdp.eval(`window.__smokeErrors = [];
   window.addEventListener('unhandledrejection', (e) => window.__smokeErrors.push('R: ' + String(e.reason?.message ?? e.reason).slice(0, 200)));`);
 
 // 1. default theme + accent + language
-await waitUntil(cdp, `document.getElementById('article-list') !== null`, 20000, 'app booted');
+// reset persisted appearance first — the smoke itself flips theme/lang in
+// later steps and localStorage survives across runs (shared userData)
+await cdp.eval(`localStorage.removeItem('reverie.theme'); localStorage.removeItem('reverie.accent'); localStorage.removeItem('reverie.lang'); location.reload();`);
+await waitUntil(cdp, `document.getElementById('article-list') !== null`, 20000, 'app booted (after reset)');
 const themeState = await cdp.eval(`({
   theme: document.documentElement.dataset.theme,
   accent: document.documentElement.dataset.accent,
   bg: getComputedStyle(document.body).backgroundColor,
   lang: document.documentElement.lang,
 })`);
-check('默认浅色主题 + 雾蓝强调色 + 中文', themeState.theme === 'light' && themeState.accent === 'mist'
-  && themeState.bg === 'rgb(246, 244, 240)' && themeState.lang === 'zh-CN', JSON.stringify(themeState));
+// default = 'system' theme: resolves to light or dark following the OS
+// scheme — assert self-consistency (resolved theme ↔ palette), not daylight
+check('默认 system 主题自洽 + 雾蓝强调色 + 中文',
+  ['light', 'dark'].includes(themeState.theme)
+  && themeState.bg === (themeState.theme === 'dark' ? 'rgb(31, 34, 42)' : 'rgb(246, 244, 240)')
+  && themeState.accent === 'mist' && themeState.lang === 'zh-CN', JSON.stringify(themeState));
 
 // 2. open article → content renders (light theme)
 await waitUntil(cdp, `document.querySelectorAll('#article-list li').length >= 1`, 20000, 'library rows rendered').catch(async (e) => {

@@ -2,6 +2,36 @@
 
 > 2026-10-05 更新：K 清单中的「主题切换 + 中英文 UI」已作为 Post-1.0 第一批交付
 > （1.1.0 主题系统 + i18n，见 docs/PROGRESS.md Post-1.0 段）。
+>
+> 2026-10-07 更新：真实使用暴露并修复浏览器采集四连缺陷（用户报告"右键保存后
+> 应用里全是 0"），见下方「采集链路修复记录」。
+
+
+## 采集链路修复记录（2026-10-07，真实使用驱动）
+
+用户实际右键 "Save page to Reverie" 后应用全 0，定位出四个叠加缺陷，全部修复
+并以真机端到端回归锁定（scripts/smoke-capture-live.mjs + smoke-packaged.mjs）：
+
+1. **旧便携包在跑**：用户的 1.0.0 包早于全部 Post-1.0 修复（无自注册、无 i18n
+   补键）。教训：修复合入后必须重新 `npm run package:portable` 并提醒换包。
+2. **宿主模式在 Windows 上从未真正可用**：Electron 主进程 stdin 不产生 data
+   事件；且 `runCaptureHost` 设置完监听即 resolve，启动器随即 `process.exit`。
+   → 宿主模式下用 `ELECTRON_RUN_AS_NODE=1` 重_exec 为纯 Node 子进程（stdio
+   直通），`main()` 等到 stdin 关闭且全部帧处理完毕才返回。
+3. **Electron 启动期向 stdout 写 `\r\n`**（pinned 44.5.1 实测，应用代码无法阻
+   止）→ Chrome 严格帧解析错位、永远等不到响应。→ 首帧对齐填充：子进程补齐
+   长度前缀并发射一个 2573 字节的空白 JSON 填充消息
+   （`{"reverie_padding":true}`），Chrome 解析后重新对齐；扩展端改用 port 长
+   连接并忽略无 `status` 的帧（一次性 sendNativeMessage 只收得到填充帧）。
+4. **运行中采集不进索引**：worker 只写 `articles/`，index/search-index 不重
+   建 → 界面永远查不到新文章（重启才被启动期 refresh 兜底）。→ 主进程增加
+   队列目录 fs.watch（500ms 去抖），处理后 rebuildIndex + refreshSearchIndex
+   + 广播 library:changed。实测右键保存后 ~900ms 文章出现在运行中的界面。
+
+附带修复：`autoRegisterNativeHost` 的 `execFile` 未导入（ESM 下抛 ReferenceError
+被吞）、manifest 数据目录引用了不存在的 `root` 变量、dev 模式注册守卫（避免把
+注册表指向 node_modules 的 electron.exe）。打包版真机验证 5/5：自注册键值 →
+manifest 指向打包 exe → 采集 ACCEPTED → 实时入库。
 
 
 > 1.0 冻结核心架构与产品边界。以下全部为 **Future**——记录 ≠ 进入开发。
