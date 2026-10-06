@@ -30,6 +30,7 @@ import { getQueueDir } from '../core/paths.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 export const EXTENSION_ID = 'ngfmioeinapcphpbgboaajachhhdgajg';
+export { main as runCaptureHost };
 
 function parseArgs(argv) {
   const args = { queueDir: getQueueDir() };
@@ -53,8 +54,8 @@ function urlOrigin(url) {
   }
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
+async function main(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
 
   if (!args.origin || args.origin !== `chrome-extension://${EXTENSION_ID}/`) {
     process.stderr.write(`[reverie-capture-host] untrusted or missing origin (${args.origin ?? 'none'}) — refusing\n`);

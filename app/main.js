@@ -11,6 +11,7 @@ import { promises as fsp } from 'node:fs';
 import { getLibraryRoot, getQueueDir } from '../src/core/paths.js';
 import { loadIndex, rebuildIndex, loadReadState, setReadState, deleteArticle } from '../src/library/index.js';
 import { listJobs, recoverOnStartup, JOB_STATUSES } from '../src/capture/queue.js';
+import { execFile } from 'node:child_process';
 import { processQueue } from '../src/capture/worker.js';
 import { verifyArticleDir } from '../src/library/persist.js';
 import { createAnnotationService } from '../src/annotation/service.js';
@@ -26,6 +27,17 @@ import { exportArticleToEpub } from '../src/importexport/export/epub-exporter.js
 import { buildReviewQueue, markReviewed } from '../src/review/daily-review.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+// ---- M1/M12: native messaging HOST mode — Chrome/Edge launch this very exe
+// with the extension origin as argv when the user clicks "Save page to
+// Reverie". Must be detected before any window/single-instance logic: the
+// host runs headless (GUI-subsystem binary → no console flash) and exits
+// when stdin closes.
+if (process.argv.slice(1).some((a) => String(a).startsWith('chrome-extension://'))) {
+  const { runCaptureHost } = await import('../src/capture/native-host.js');
+  await runCaptureHost(process.argv.slice(1));
+  process.exit(0);
+}
 
 // ---- M11 bootstrap: settings → library root (env keeps highest precedence)
 import { loadAppSettings, saveAppSettings, appSettingsPath } from '../src/core/app-settings.js';
@@ -678,8 +690,13 @@ function createWindow() {
   void win.loadFile(path.join(here, 'renderer', 'index.html'));
 }
 
-// ---- M11: single instance (§20) — a second launch forwards its args here
-const gotLock = app.requestSingleInstanceLock();
+// ---- M11: single instance (§20) — a second launch forwards its args here.
+// EXCEPT: a native-host invocation (chrome-extension:// argv) must NOT be
+// blocked by the single-instance lock — it is a headless capture relay and
+// already exited earlier in this file.
+const gotLock = process.argv.slice(1).some((a) => String(a).startsWith('chrome-extension://'))
+  ? true
+  : app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
@@ -690,6 +707,46 @@ if (!gotLock) {
     }
     void openFilesFromArgs(argv);
   });
+}
+
+// ---- M12/Post-1.0: auto-register the native messaging host (Windows, HKCU)
+// so "Save page to Reverie" works without ever running register.ps1 by hand.
+// Idempotent: registry keys are only rewritten when the manifest path changes.
+const HOST_NAME = 'com.reverie.capture_host';
+async function autoRegisterNativeHost() {
+  if (process.platform !== 'win32') return;
+  try {
+    const { EXTENSION_ID } = await import('../src/capture/native-host.js');
+    const dataDir = path.join(root, 'native-host', 'data');
+    await fsp.mkdir(dataDir, { recursive: true });
+    const manifestPath = path.join(dataDir, `${HOST_NAME}.json`);
+    const manifest = {
+      name: HOST_NAME,
+      description: 'Reverie Capture Host — receives capture requests from the Reverie browser extension',
+      path: process.execPath, // Reverie.exe itself acts as the windowless host
+      type: 'stdio',
+      allowed_origins: [`chrome-extension://${EXTENSION_ID}/`],
+    };
+    const manifestJson = JSON.stringify(manifest, null, 2);
+    const existing = await fsp.readFile(manifestPath, 'utf8').catch(() => null);
+    if (existing !== manifestJson) {
+      await fsp.writeFile(manifestPath, manifestJson, 'utf8');
+      appLog.info(`native host manifest updated: ${manifestPath}`);
+    }
+    // point Chrome/Edge at the manifest (HKCU — per-user, no admin);
+    // reg add is idempotent, so this is safe on every startup
+    for (const regKey of [
+      `HKCU\\SOFTWARE\\Google\\Chrome\\NativeMessagingHosts\\${HOST_NAME}`,
+      `HKCU\\SOFTWARE\\Microsoft\\Edge\\NativeMessagingHosts\\${HOST_NAME}`,
+    ]) {
+      await new Promise((resolve, reject) => {
+        const p = execFile('reg', ['add', regKey, '/ve', '/d', manifestPath, '/f'], (err, stdout) => (err ? reject(err) : resolve(stdout)));
+        p.on('exit', () => resolve());
+      }).catch(() => appLog.warn(`native host registration failed: ${regKey}`));
+    }
+  } catch (err) {
+    appLog.warn(`native host auto-registration skipped: ${err.message}`);
+  }
 }
 
 /** M11 §19: supported file arguments — .epub/.pdf are ingested into the
@@ -727,6 +784,7 @@ app.whenReady().then(async () => {
   await fsp.mkdir(queueDir, { recursive: true });
   registerIpc();
   createWindow();
+  void autoRegisterNativeHost(); // Post-1.0: register the capture host in background
   await runQueueIfIdle();
   await loadSearchIndex(libraryRoot).catch(() => {});
   await refreshSearchIndex(libraryRoot).catch((e) => console.error('[reverie] search refresh:', e.message)); // process what accumulated while the app was closed (M1 §5.1)
