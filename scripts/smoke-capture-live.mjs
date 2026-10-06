@@ -217,6 +217,63 @@ try {
   check('article appears in the running app without restart', appeared === true, `after ${Date.now() - t0}ms`);
   const title = await cdp.eval(`(document.querySelector('#article-list .lib-row')?.textContent ?? '').slice(0, 80)`);
   check('card is the captured page', /实时采集验证/.test(title), title);
+
+  // ---- user's real scenario: a page with NO article body (portal home like
+  // baidu.com) must not vanish silently — it fails extraction and the app
+  // shows a failure banner with a localized reason and a clear action
+  const noArticleServer = createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end('<html><head><title>门户首页</title></head><body><div><a href="/news">新闻</a><a href="/mail">邮箱</a><form><input placeholder="搜索"></form></div></body></html>');
+  });
+  await new Promise((r) => noArticleServer.listen(0, '127.0.0.1', r));
+  const noArticleUrl = `http://127.0.0.1:${noArticleServer.address().port}/home`;
+  const host2 = spawn(electronExe, ['.', `chrome-extension://${EXTENSION_ID}/`], {
+    cwd: root, env, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  let host2Err = '';
+  host2.stderr.on('data', (d) => { host2Err += d; });
+  const resp2 = await new Promise((resolve, reject) => {
+    let buf = Buffer.alloc(0);
+    const timer = setTimeout(() => reject(new Error('host2 timeout; stderr=' + host2Err.slice(-200))), 20000);
+    host2.stdout.on('data', (chunk) => {
+      buf = Buffer.concat([buf, chunk]);
+      for (;;) {
+        if (buf.length < 4) return;
+        const len = buf.readUInt32LE(0);
+        if (buf.length < 4 + len) return;
+        const msg = JSON.parse(buf.subarray(4, 4 + len).toString('utf8'));
+        buf = buf.subarray(4 + len);
+        if (msg.status) { clearTimeout(timer); return resolve(msg); }
+      }
+    });
+    host2.on('exit', (c) => { clearTimeout(timer); reject(new Error('host2 exited ' + c)); });
+    host2.stdin.write(frame({
+      protocol_version: PROTOCOL_VERSION,
+      request_id: crypto.randomUUID(),
+      url: noArticleUrl,
+      title: '门户首页',
+      source: 'browser',
+      capture_mode: 'article',
+      created_at: new Date().toISOString(),
+    }));
+    host2.stdin.end();
+  });
+  check('non-article page still ACCEPTED at enqueue time', resp2?.status === RESPONSE_STATUSES.ACCEPTED, JSON.stringify(resp2));
+  await killTree(host2);
+  const banner = await waitUntil(cdp,
+    `document.getElementById('capture-failures')?.hidden === false && /采集失败|无法提取正文/.test(document.getElementById('capture-failures').textContent)`,
+    15000, 'failure banner appears');
+  check('failure banner appears with localized reason', banner === true,
+    (await cdp.eval(`document.getElementById('capture-failures').textContent.slice(0, 120)`)));
+  await cdp.eval(`document.querySelector('.capfail-clear').click()`);
+  const cleared = await waitUntil(cdp,
+    `document.getElementById('capture-failures')?.hidden === true`, 8000, 'banner cleared');
+  const queueFilesAfter = await fsp.readdir(path.join(env.REVERIE_HOME, 'queue'));
+  // failed job file must be gone; the SUCCESSFUL job is history and stays
+  const failedGone = !queueFilesAfter.includes(`${resp2.request_id}.json`);
+  check('clear removes failed jobs from disk', cleared === true && failedGone,
+    `queue=${JSON.stringify(queueFilesAfter)} failedGone=${failedGone}`);
+  noArticleServer.close();
 } catch (err) {
   let diag = '';
   try {

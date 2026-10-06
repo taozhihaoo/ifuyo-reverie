@@ -29,7 +29,14 @@ for (let i = 0; i < 30; i++) {
 }
 check('注册表已自注册（Chrome）', regOut.includes('com.reverie.capture_host.json'), regOut.trim().split('\n').pop()?.trim() || '(key missing)');
 const manifestPath = regOut.split('REG_SZ').pop()?.trim();
-const manifest = manifestPath ? await fsp.readFile(manifestPath, 'utf8').catch(() => '') : '';
+// packaging wipes resources/app/native-host/data but the registry key may
+// survive from a previous run — poll until the app has (re)written the file
+let manifest = '';
+for (let i = 0; i < 20 && manifestPath; i++) {
+  manifest = await fsp.readFile(manifestPath, 'utf8').catch(() => '');
+  if (manifest.includes(`chrome-extension://`)) break;
+  await sleep(1000);
+}
 const manifestOk = manifest.includes(`chrome-extension://`) && manifest.includes(exe.split('\\').join('\\\\'));
 check('manifest 指向打包版 Reverie.exe', manifestOk, manifestPath ?? '(none)');
 
