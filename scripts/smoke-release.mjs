@@ -136,6 +136,10 @@ check('打包产物启动（无源码树/无开发依赖）并列出库内容', 
 
 const info = await cdp.eval(`window.reverie.appInfo()`);
 check('应用版本信息 = package.json 版本', info.version === pkg.version && info.platform === 'windows-x64', JSON.stringify(info));
+check('扩展随包分发（setup 引导可指向的文件夹）', info.extensionId === 'ngfmioeinapcphpbgboaajachhhdgajg'
+  && await fsp.access(info.extensionDir).then(() => true, () => false)
+  && await fsp.access(path.join(info.extensionDir, 'manifest.json')).then(() => true, () => false),
+  JSON.stringify({ extensionDir: info.extensionDir, extensionId: info.extensionId }));
 
 const doctor = await cdp.eval(`window.reverie.doctorRun()`);
 check('Doctor 在打包产物内可用且库健康', doctor.summary.documents === 1 && (doctor.summary.bySeverity.critical ?? 0) === 0,

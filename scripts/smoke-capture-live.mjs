@@ -141,6 +141,8 @@ try {
   await waitUntil(cdp, `document.querySelector('#article-list') !== null`, 20000, 'app ready');
   const before = await cdp.eval(`document.querySelectorAll('#article-list .lib-row').length`);
   check('app starts with empty library', before === 0, `cards=${before}`);
+  const guide = await cdp.eval(`(() => { const g = document.getElementById('setup-guide'); return g && g.hidden === false && g.textContent.includes('扩展'); })()`);
+  check('empty library shows the extension setup guide', guide === true);
 
   // ---- act as the browser: launch the host with the extension origin and
   // send one native-messaging frame (4-byte LE length + JSON)

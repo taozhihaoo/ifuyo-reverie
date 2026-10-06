@@ -374,7 +374,7 @@ const restoredLib = path.join(tmp, 'restored-library');
 await fsp.cp(backupDir, restoredLib, { recursive: true });
 
 const env2 = { ...env, REVERIE_LIBRARY: restoredLib, REVERIE_HOME: path.join(tmp, 'home2'), REVERIE_SEARCH_INDEX: path.join(tmp, 'search2.json') };
-const child2 = spawn(electronExe, [`--remote-debugging-port=${PORT}`], {
+const child2 = spawn(electronExe, ['.', `--remote-debugging-port=${PORT}`], {
   cwd: root, env: env2, stdio: ['ignore', 'ignore', 'ignore'],
 });
 const target2 = await findPageTarget();
