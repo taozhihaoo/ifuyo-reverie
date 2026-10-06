@@ -6,12 +6,12 @@
  */
 import { app, BrowserWindow, ipcMain, shell, Menu, dialog, screen } from 'electron';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import { promises as fsp } from 'node:fs';
+import { promises as fsp, watch as fsWatch } from 'node:fs';
 import { getLibraryRoot, getQueueDir } from '../src/core/paths.js';
 import { loadIndex, rebuildIndex, loadReadState, setReadState, deleteArticle } from '../src/library/index.js';
 import { listJobs, recoverOnStartup, JOB_STATUSES } from '../src/capture/queue.js';
-import { execFile } from 'node:child_process';
 import { processQueue } from '../src/capture/worker.js';
 import { verifyArticleDir } from '../src/library/persist.js';
 import { createAnnotationService } from '../src/annotation/service.js';
@@ -33,12 +33,34 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // Reverie". Must be detected before any window/single-instance logic: the
 // host runs headless (GUI-subsystem binary → no console flash) and exits
 // when stdin closes.
+//
+// Electron's main-process stdin does not emit 'data' events on Windows, so
+// the frame loop cannot run here — re-exec as plain Node (ELECTRON_RUN_AS_NODE)
+// with stdio inherited straight from the browser's pipes.
 if (process.argv.slice(1).some((a) => String(a).startsWith('chrome-extension://'))) {
-  const { runCaptureHost } = await import('../src/capture/native-host.js');
-  await runCaptureHost(process.argv.slice(1));
-  process.exit(0);
+  const { spawn } = await import('node:child_process');
+  const hostScript = fileURLToPath(new URL('../src/capture/native-host.js', import.meta.url));
+  const child = spawn(process.execPath, [hostScript, ...process.argv.slice(1)], {
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
+      // this launcher writes "\r\n" to stdout at boot before any app code —
+      // the host uses the marker to emit a first-frame alignment pad
+      ...(process.platform === 'win32' ? { REVERIE_STDOUT_SKIP: '2' } : {}),
+    },
+    stdio: 'inherit',
+  });
+  // await: the code below must never run for a host invocation (no window,
+  // no single-instance lock fight with the GUI app); exit with the child's code
+  const exitCode = await new Promise((resolve) => {
+    child.on('exit', (_code, signal) => resolve(signal ? 1 : (_code ?? 0)));
+    child.on('error', (err) => {
+      process.stderr.write(`[reverie] host spawn failed: ${err.message}\n`); // browser shows the capture as failed
+      resolve(1);
+    });
+  });
+  process.exit(exitCode);
 }
-
 // ---- M11 bootstrap: settings → library root (env keeps highest precedence)
 import { loadAppSettings, saveAppSettings, appSettingsPath } from '../src/core/app-settings.js';
 import { appLog, logsDir } from '../src/core/app-log.js';
@@ -66,8 +88,16 @@ async function runQueueIfIdle() {
   processing = true;
   try {
     await recoverOnStartup(queueDir);
+    const pending = (await listJobs(queueDir)).some((j) => j.status === JOB_STATUSES.QUEUED || j.status === JOB_STATUSES.RUNNING);
     await processQueue({ queueDir, libraryRoot, onJobUpdate: () => broadcast('queue:changed') });
     broadcast('queue:changed');
+    if (pending) {
+      // a processed capture only writes articles/ — the UI queries the index,
+      // so without this rebuild the new article is invisible until restart
+      await rebuildIndex(libraryRoot);
+      await refreshSearchIndex(libraryRoot).catch((e) => console.error('[reverie] search refresh:', e.message));
+      broadcast('library:changed');
+    }
   } catch (err) {
     console.error('[reverie] queue processing failed:', err.message);
   } finally {
@@ -78,6 +108,25 @@ async function runQueueIfIdle() {
 function broadcast(channel) {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send(channel);
+  }
+}
+
+// Post-1.0: the capture host only writes the job to the queue dir — it cannot
+// signal the app. Without this watcher, captures made while the app is running
+// sit unprocessed until the next launch (user: "right-clicked save, app shows
+// nothing"). Debounced fs.watch → process immediately while running.
+let queueWatchTimer = null;
+function watchQueueDir() {
+  try {
+    fsWatch(queueDir, { persistent: false }, () => {
+      if (queueWatchTimer) clearTimeout(queueWatchTimer);
+      queueWatchTimer = setTimeout(() => {
+        queueWatchTimer = null;
+        void runQueueIfIdle();
+      }, 500);
+    });
+  } catch (err) {
+    appLog.warn(`queue dir watch unavailable: ${err.message}`); // capture still processed on next launch
   }
 }
 
@@ -715,9 +764,12 @@ if (!gotLock) {
 const HOST_NAME = 'com.reverie.capture_host';
 async function autoRegisterNativeHost() {
   if (process.platform !== 'win32') return;
+  // dev guard: registering would point the registry at node_modules' electron.exe,
+  // which cannot run headless as a host — dev uses run-host.cmd instead (M1 §4)
+  if (!app.isPackaged && process.env.REVERIE_REGISTER_HOST !== '1') return;
   try {
     const { EXTENSION_ID } = await import('../src/capture/native-host.js');
-    const dataDir = path.join(root, 'native-host', 'data');
+    const dataDir = path.join(here, '..', 'native-host', 'data'); // repo root / resources/app — shared with register.ps1's location
     await fsp.mkdir(dataDir, { recursive: true });
     const manifestPath = path.join(dataDir, `${HOST_NAME}.json`);
     const manifest = {
@@ -786,6 +838,7 @@ app.whenReady().then(async () => {
   createWindow();
   void autoRegisterNativeHost(); // Post-1.0: register the capture host in background
   await runQueueIfIdle();
+  watchQueueDir(); // captures arriving while running are processed within ~500ms
   await loadSearchIndex(libraryRoot).catch(() => {});
   await refreshSearchIndex(libraryRoot).catch((e) => console.error('[reverie] search refresh:', e.message)); // process what accumulated while the app was closed (M1 §5.1)
   // cold-start fix (M12): the renderer may have queried before the search
