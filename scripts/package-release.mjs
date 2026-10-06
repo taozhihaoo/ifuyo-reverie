@@ -72,6 +72,10 @@ delete pkgForRelease.scripts;
 await fsp.writeFile(path.join(resourcesApp, 'package.json'), JSON.stringify(pkgForRelease, null, 2));
 await copyDir(path.join(root, 'app'), path.join(resourcesApp, 'app'));
 await copyDir(path.join(root, 'src'), path.join(resourcesApp, 'src'));
+// the browser extension ships with the app — the setup guide in the empty
+// library reveals this folder ("load unpacked" works from any path because
+// the manifest pins a key → the extension ID is path-independent)
+await copyDir(path.join(root, 'extension'), path.join(resourcesApp, 'extension'));
 await fsp.copyFile(path.join(root, 'build-info.json'), path.join(resourcesApp, 'build-info.json'));
 
 // 4. runtime node_modules: production closure resolved from the local tree

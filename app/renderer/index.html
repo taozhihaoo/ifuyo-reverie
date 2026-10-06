@@ -63,6 +63,20 @@
   </nav>
 
   <main id="library-view">
+    <div id="setup-guide" hidden>
+      <p class="setup-title" data-i18n="setup.title">连接浏览器扩展</p>
+      <ol class="setup-steps">
+        <li data-i18n="setup.step1">在浏览器打开扩展管理页：地址栏输入 edge://extensions（Edge）或 chrome://extensions（Chrome）</li>
+        <li data-i18n="setup.step2">打开「开发人员模式」开关</li>
+        <li data-i18n="setup.step3">点击「加载解压缩的扩展」，选择下面打开的 Reverie 扩展文件夹</li>
+      </ol>
+      <div class="setup-actions">
+        <button id="btn-open-extension-folder" type="button" data-i18n="setup.openFolder">打开扩展文件夹</button>
+        <button id="btn-copy-extension-id" type="button" data-i18n="setup.copyId">复制扩展 ID</button>
+        <span id="setup-ext-id" class="setup-ext-id"></span>
+      </div>
+      <p class="setup-note" data-i18n="setup.note">扩展 ID 已固定——文件夹放在哪里都不影响连接。加载后右键任意文章页即可保存。</p>
+    </div>
     <div id="capture-failures" hidden></div>
     <button id="btn-export-view-epub" type="button" hidden></button>
     <ul id="article-list"></ul>

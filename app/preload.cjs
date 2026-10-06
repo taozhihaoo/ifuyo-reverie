@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('reverie', {
   settingsSetLibrary: (libraryPath) => ipcRenderer.invoke('settings:set-library', { libraryPath }),
   appRelaunch: () => ipcRenderer.invoke('app:relaunch'),
   appInfo: () => ipcRenderer.invoke('app:info'),
+  revealExtensionFolder: () => ipcRenderer.invoke('app:reveal-extension-folder'),
+  copyText: (text) => ipcRenderer.invoke('app:copy-text', text),
   appOpenLogs: () => ipcRenderer.invoke('app:open-logs'),
   appOpenLibraryFolder: () => ipcRenderer.invoke('app:open-library-folder'),
   onOpenDocument: (cb) => {

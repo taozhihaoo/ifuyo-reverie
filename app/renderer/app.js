@@ -311,6 +311,38 @@ function prevReviewItem() {
   if (reviewIndex > 0) { reviewIndex--; showReviewItem(); }
 }
 
+// First-run onboarding: a fresh library almost always means the browser
+// extension is not loaded yet (loading unpacked is the only browser-allowed
+// way) — show the three steps, open the shipped extension folder on demand.
+let setupExtId = '';
+async function updateSetupGuide(show) {
+  const guide = document.getElementById('setup-guide');
+  if (!guide) return;
+  guide.hidden = !show;
+  if (!show) return;
+  if (!setupExtId) {
+    try { setupExtId = (await reverie.appInfo()).extensionId ?? ''; } catch { /* id stays blank */ }
+  }
+  const idEl = document.getElementById('setup-ext-id');
+  if (idEl) idEl.textContent = setupExtId;
+  const openBtn = document.getElementById('btn-open-extension-folder');
+  if (openBtn && !openBtn.dataset.wired) {
+    openBtn.dataset.wired = '1';
+    openBtn.addEventListener('click', () => reverie.revealExtensionFolder().catch(() => {}));
+  }
+  const copyBtn = document.getElementById('btn-copy-extension-id');
+  if (copyBtn && !copyBtn.dataset.wired) {
+    copyBtn.dataset.wired = '1';
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await reverie.copyText(setupExtId);
+        copyBtn.textContent = t('setup.copied');
+        setTimeout(() => { copyBtn.textContent = t('setup.copyId'); }, 2000);
+      } catch { /* clipboard denied — the ID is visible next to the button */ }
+    });
+  }
+}
+
 // Failed captures were invisible in both ends (browser badge flashes 4s,
 // app showed nothing) — user right-clicked a portal home page with no
 // article body and had no way to know why nothing appeared. Surface the
@@ -417,6 +449,8 @@ async function showLibrary() {
   els.empty.textContent = activeFeedId
     ? t('feed.emptyFeed')
     : viewEmpty(currentView);
+  updateSetupGuide(results.length === 0 && currentView === 'all' && !activeFeedId
+    && !currentTags.length && !searchInput.value.trim());
   if (total > results.length) {
     const more = document.createElement('li');
     more.className = 'load-more';
@@ -1424,6 +1458,20 @@ reverie.onLibraryChanged(() => { if (!els.library.hidden) showLibrary(); });
 reverie.onQueueChanged(() => { if (!els.library.hidden) showLibrary(); });
 
 showLibrary();
+
+// captures made while the app was closed are processed at startup (queue
+// drained in main's whenReady) — surface the count so "I saved pages
+// yesterday with the app closed" doesn't look like they vanished
+setTimeout(async () => {
+  try {
+    const recent = (await reverie.queueList())
+      .filter((j) => j.status === 'completed' && Date.now() - new Date(j.updated_at).getTime() < 180000);
+    if (!recent.length) return;
+    const msg = t('queue.imported', { n: recent.length });
+    els.queueHint.textContent = msg;
+    setTimeout(() => { if (els.queueHint.textContent === msg) els.queueHint.textContent = ''; }, 10000);
+  } catch { /* informational only */ }
+}, 2500);
 
 // i18n: re-render dynamic surfaces when the language changes (Post-1.0)
 document.addEventListener('reverie:langchanged', () => {

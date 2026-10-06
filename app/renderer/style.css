@@ -176,6 +176,24 @@ select:focus { outline: none; border-color: var(--accent); }
   background: var(--capfail-bg); border: 1px solid var(--capfail-line);
   border-radius: 10px; font-size: 12.5px; line-height: 1.5;
 }
+#setup-guide {
+  margin: 4px 0 10px; padding: 14px 16px;
+  background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow-card);
+  font-size: 13px; line-height: 1.6;
+}
+.setup-title { margin: 0 0 8px; font-weight: 650; font-size: 14px; }
+.setup-steps { margin: 0 0 10px; padding-left: 20px; }
+.setup-steps li { margin: 3px 0; color: var(--fg); }
+.setup-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.setup-actions button {
+  border: 1px solid var(--accent); background: var(--accent-weak); color: var(--accent-strong);
+  border-radius: 8px; padding: 5px 12px; font-size: 12.5px; cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.setup-actions button:hover { background: var(--accent); color: var(--bg-elev); }
+.setup-ext-id { color: var(--fg-muted); font-size: 12px; user-select: text; }
+.setup-note { margin: 0; color: var(--fg-muted); font-size: 12px; }
 .capfail-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .capfail-title { font-weight: 600; color: var(--capfail-why); }
 .capfail-clear {

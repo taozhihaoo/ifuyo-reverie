@@ -4,7 +4,7 @@
  * Pipeline, Annotation Core) so the architecture boundary App -> Core stays
  * honest and testable without Electron.
  */
-import { app, BrowserWindow, ipcMain, shell, Menu, dialog, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Menu, dialog, screen, clipboard } from 'electron';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ import { promises as fsp, watch as fsWatch } from 'node:fs';
 import { getLibraryRoot, getQueueDir } from '../src/core/paths.js';
 import { loadIndex, rebuildIndex, loadReadState, setReadState, deleteArticle } from '../src/library/index.js';
 import { listJobs, recoverOnStartup, clearFailed, JOB_STATUSES } from '../src/capture/queue.js';
+import { EXTENSION_ID } from '../src/capture/native-host.js';
 import { processQueue } from '../src/capture/worker.js';
 import { verifyArticleDir } from '../src/library/persist.js';
 import { createAnnotationService } from '../src/annotation/service.js';
@@ -27,6 +28,7 @@ import { exportArticleToEpub } from '../src/importexport/export/epub-exporter.js
 import { buildReviewQueue, markReviewed } from '../src/review/daily-review.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const extensionDir = path.join(here, '..', 'extension'); // packaged: resources/app/extension (ships with the app)
 
 // ---- M1/M12: native messaging HOST mode — Chrome/Edge launch this very exe
 // with the extension origin as argv when the user clicks "Save page to
@@ -395,7 +397,22 @@ function registerIpc() {
     app.relaunch();
     app.exit(0);
   });
-  ipcMain.handle('app:info', async () => ({ version: app.getVersion(), ...buildInfo(), logsDir: logsDir() }));
+  ipcMain.handle('app:info', async () => ({
+    version: app.getVersion(),
+    ...buildInfo(),
+    logsDir: logsDir(),
+    extensionDir: extensionDir,
+    extensionId: EXTENSION_ID,
+  }));
+  ipcMain.handle('app:reveal-extension-folder', async () => {
+    await fsp.mkdir(extensionDir, { recursive: true }); // packaged fresh install: folder exists but be safe
+    shell.showItemInFolder(extensionDir);
+    return true;
+  });
+  ipcMain.handle('app:copy-text', async (_e, text) => {
+    clipboard.writeText(String(text ?? ''));
+    return true;
+  });
   ipcMain.handle('app:open-logs', async () => {
     await fsp.mkdir(logsDir(), { recursive: true });
     shell.openPath(logsDir());
