@@ -64,7 +64,36 @@ async function main(argv = process.argv.slice(2)) {
 
   process.stderr.write(`[reverie-capture-host] ready (protocol v${PROTOCOL_VERSION})\n`);
 
+  // Windows: the Electron launcher (Reverie.exe) emits exactly "\r\n" to
+  // stdout during boot — before any app code runs (verified for the pinned
+  // electron 44.5.1; bare `electron empty.js` reproduces it). Chrome reads
+  // stdout as strict length-prefixed frames, so those two bytes join our
+  // first response bytes to form a garbage prefix (len ≈ 14 MB → Chrome
+  // hangs and the capture fails). Fix: complete the corrupted 4-byte prefix
+  // with two NUL bytes → length = 0x00000a0d = 2573 — then emit exactly
+  // 2573 bytes of whitespace-padded JSON as a harmless first message
+  // ({"reverie_padding":true}); Chrome parses it, the extension ignores it,
+  // and the parser is byte-aligned again for the real response that follows.
+  // Only active when the launcher signals the junk via REVERIE_STDOUT_SKIP.
+  const stdoutSkip = Number(process.env.REVERIE_STDOUT_SKIP ?? '0');
+  const PAD_LEN = 0x0a0d;
+  const PAD_PAYLOAD = JSON.stringify({ reverie_padding: true });
+  let firstFrame = true;
   const write = (obj) => {
+    if (firstFrame && stdoutSkip > 0) {
+      firstFrame = false;
+      if (stdoutSkip === 2) {
+        const padSpaces = Buffer.alloc(PAD_LEN - PAD_PAYLOAD.length, 0x20);
+        const out = Buffer.concat([
+          Buffer.from([0x00, 0x00]), // complete the junk-corrupted length prefix
+          Buffer.from(padSpaces), // leading whitespace, legal JSON
+          Buffer.from(PAD_PAYLOAD), // padding message = exactly PAD_LEN bytes
+        ]);
+        process.stdout.write(out);
+      } else {
+        process.stderr.write(`[reverie-capture-host] unknown REVERIE_STDOUT_SKIP=${stdoutSkip} — writing plain frames (may misalign)\n`);
+      }
+    }
     const payload = Buffer.from(JSON.stringify(obj), 'utf8');
     const head = Buffer.alloc(4);
     head.writeUInt32LE(payload.length, 0);
@@ -125,11 +154,20 @@ async function main(argv = process.argv.slice(2)) {
     }
   });
 
-  process.stdin.on('end', async () => {
-    try { await writes; } catch { /* logged */ }
-    process.stderr.write('[reverie-capture-host] stdin closed — bye\n');
-    process.exit(0);
+  // main() must not resolve until (a) the browser closes stdin AND (b) every
+  // enqueued frame has been answered — embedded hosts (Reverie.exe launched
+  // by Chrome) exit right after we return, so resolving early would kill
+  // pending frames mid-write and the browser would show the capture as failed
+  await new Promise((resolve) => {
+    const done = () => { void writes.catch(() => {}).then(() => resolve()); };
+    if (process.stdin.readableEnded) return done();
+    process.stdin.once('end', done);
+    process.stdin.once('error', done);
+    // safety net: never outlive the browser (native messaging contract)
+    const t = setTimeout(done, 24 * 60 * 60 * 1000);
+    if (typeof t.unref === 'function') t.unref();
   });
+  process.stderr.write('[reverie-capture-host] stdin closed — bye\n');
 }
 
 // run only when executed directly

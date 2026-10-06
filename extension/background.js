@@ -3,8 +3,15 @@
  * Sends a CaptureRequest to the Reverie Capture Host via Native Messaging;
  * the Host only enqueues (fast), so the badge means "queued", and the final
  * result is visible inside the Reverie app.
+ *
+ * Uses a long-lived port instead of one-shot sendNativeMessage: on Windows
+ * the host emits one harmless {"reverie_padding":true} alignment message
+ * before the real response (Electron launcher writes "\r\n" to stdout at
+ * boot — see src/capture/native-host.js), and one-shot mode would mistake
+ * it for the answer.
  */
 const HOST_NAME = 'com.reverie.capture_host';
+const RESPONSE_TIMEOUT_MS = 15000;
 
 function urlOrigin(url) {
   try {
@@ -13,6 +20,29 @@ function urlOrigin(url) {
   } catch {
     return '(unparsable)';
   }
+}
+
+function requestViaPort(request) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (response, error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { port.disconnect(); } catch { /* already gone */ }
+      resolve(response ?? null, error);
+    };
+    const timer = setTimeout(() => finish(null, new Error('host response timeout')), RESPONSE_TIMEOUT_MS);
+    const port = chrome.runtime.connectNative(HOST_NAME);
+    port.onMessage.addListener((msg) => {
+      if (msg && typeof msg === 'object' && !msg.status) return; // alignment padding
+      finish(msg);
+    });
+    port.onDisconnect.addListener(() => {
+      finish(null, new Error(chrome.runtime.lastError?.message ?? 'host disconnected'));
+    });
+    port.postMessage(request);
+  });
 }
 
 async function captureTab(tab) {
@@ -33,7 +63,7 @@ async function captureTab(tab) {
     created_at: new Date().toISOString(),
   };
   try {
-    const response = await chrome.runtime.sendNativeMessage(HOST_NAME, request);
+    const response = await requestViaPort(request);
     if (response?.status === 'accepted') {
       await chrome.action.setBadgeText({ text: 'SAVED' });
       console.info(`queued ${request.request_id} from ${urlOrigin(request.url)}`);
