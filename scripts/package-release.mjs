@@ -84,6 +84,32 @@ for (const pkgDir of prodPkgs) {
   await copyDir(pkgDir, path.join(runtimeRoot, rel));
 }
 
+// 4b. prune (M11 §87: shipped size matters; every prune keeps a runtime need)
+// - @napi-rs/canvas: pdfjs optional dep, pulled in by the closure but unused —
+//   the main process only extracts text (no canvas rendering)
+await fsp.rm(path.join(runtimeRoot, '@napi-rs'), { recursive: true, force: true });
+// - pdfjs-dist: keep only the legacy build the main process imports + its
+//   standard fonts (CJK text extraction) — renderer uses app/vendor/pdfjs
+const pjs = path.join(runtimeRoot, 'pdfjs-dist');
+for (const sub of ['build', 'web', 'types', 'cmaps', 'wasm', 'legacy/web']) {
+  await fsp.rm(path.join(pjs, ...sub.split('/')), { recursive: true, force: true });
+}
+for (const e of await fsp.readdir(path.join(pjs, 'legacy', 'build')).catch(() => [])) {
+  if (!/^pdf(\.min)?\.mjs$/.test(e) && !e.endsWith('.map')) {
+    await fsp.rm(path.join(pjs, 'legacy', 'build', e), { force: true });
+  }
+}
+// - Electron locales: keep only the languages Reverie ships (M11 §87)
+const localesDir = path.join(appDir, 'locales');
+if (existsSync(localesDir)) {
+  const keepLocales = new Set(['zh-CN.pak', 'zh-TW.pak', 'en-US.pak', 'en-GB.pak']);
+  for (const f of await fsp.readdir(localesDir)) {
+    if (!keepLocales.has(f)) await fsp.rm(path.join(localesDir, f), { force: true });
+  }
+}
+// - Electron's default app: replaced by Reverie resources
+await fsp.rm(path.join(appDir, 'resources', 'default_app.asar'), { force: true });
+
 // 5. zip (DEFLATE; entries carry the build date so archives don't show the
 // 1980 DOS epoch; SOURCE_DATE_EPOCH env honored for reproducible builds)
 const appFiles = (await walkFiles(appDir)).sort();
