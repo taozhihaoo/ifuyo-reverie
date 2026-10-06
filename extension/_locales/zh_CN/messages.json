@@ -1,0 +1,22 @@
+{
+  "extName": {
+    "message": "Reverie 采集",
+    "description": "Extension display name"
+  },
+  "extDesc": {
+    "message": "把网页保存到 Reverie 阅读档案（本地优先，跟随应用入库）。",
+    "description": "Extension description"
+  },
+  "actionTitle": {
+    "message": "把页面保存到 Reverie",
+    "description": "Toolbar button tooltip"
+  },
+  "savePageMenu": {
+    "message": "把页面保存到 Reverie",
+    "description": "Context menu item title"
+  },
+  "errTitle": {
+    "message": "Reverie：只能保存 http(s) 网页",
+    "description": "Badge error tooltip for non-http(s) pages"
+  }
+}

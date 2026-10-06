@@ -1,0 +1,22 @@
+{
+  "extName": {
+    "message": "Reverie Capture",
+    "description": "Extension display name"
+  },
+  "extDesc": {
+    "message": "Save pages into your local-first Reverie reading archive.",
+    "description": "Extension description"
+  },
+  "actionTitle": {
+    "message": "Save page to Reverie",
+    "description": "Toolbar button tooltip"
+  },
+  "savePageMenu": {
+    "message": "Save page to Reverie",
+    "description": "Context menu item title"
+  },
+  "errTitle": {
+    "message": "Reverie: only http(s) pages can be saved",
+    "description": "Badge error tooltip for non-http(s) pages"
+  }
+}

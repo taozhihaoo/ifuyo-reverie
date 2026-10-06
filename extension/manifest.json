@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Reverie Capture (Spike)",
-  "version": "0.1.0",
-  "description": "M0 spike: send the current page URL to the Reverie Capture Host via Native Messaging.",
+  "name": "__MSG_extName__",
+  "version": "1.0.0",
+  "default_locale": "zh_CN",
+  "description": "__MSG_extDesc__",
   "permissions": ["nativeMessaging", "activeTab", "contextMenus"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Save page to Reverie"
+    "default_title": "__MSG_actionTitle__"
   },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2G/PQ4i+y6N48JCnWONP8jg75BQx9EqW69hHeU9sZ986Gk3vhyoFohMv+IaI/3oKFahgiHpuS8tKcdqc4O9OFdRZJ/f6R2BER5rXju7JI/kFvZ3lEcQbTqa1UCOcsDdoTXsXZ9wd2zM80cEUTlxBKLyqKYTWRvVFuigi253KkPhKNSlAHSNfwRztMk056jWA5pFUnB4c/QEaKJ9HMxwhbzHZIJ7ovETd6dAt7X0sS3boNrnMoDLM7Lsip24W28+LsTbmip5fIx/Wg4k2Z6OZbs/AMQUQ5J2fYzK03s57xmikB2sF17hoP9aQP4T+CSQoKgvlqeICcqZi2M63zC5kxQIDAQAB"
 }

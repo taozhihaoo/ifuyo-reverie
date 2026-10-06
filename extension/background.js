@@ -48,7 +48,7 @@ function requestViaPort(request) {
 async function captureTab(tab) {
   if (!tab?.url || !/^https?:/i.test(tab.url)) {
     await chrome.action.setBadgeText({ text: 'ERR' });
-    await chrome.action.setTitle({ title: 'Reverie: only http(s) pages can be saved' });
+    await chrome.action.setTitle({ title: chrome.i18n.getMessage('errTitle') });
     setTimeout(() => chrome.action.setBadgeText({ text: '' }), 4000);
     return;
   }
@@ -81,10 +81,14 @@ async function captureTab(tab) {
 chrome.action.onClicked.addListener((tab) => captureTab(tab));
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'reverie-save-page',
-    title: 'Save page to Reverie',
-    contexts: ['page'],
+  // removeAll first: onInstalled fires again on every extension reload and a
+  // duplicate menu id would only log an error nobody sees
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'reverie-save-page',
+      title: chrome.i18n.getMessage('savePageMenu'),
+      contexts: ['page'],
+    });
   });
 });
 
