@@ -159,6 +159,24 @@ async function makeCorruptLibrary() {
 
 test('doctor: corrupt library → correct findings; safe repair fixes them; idempotent (M10 §104/105)', async () => {
   const { lib } = await makeCorruptLibrary();
+  // Deterministic index cross-check: doctor resolves the global search-index
+  // path (REVERIE_SEARCH_INDEX ?? REVERIE_HOME) through a module-level cache.
+  // Without pinning both, the safe-repair plan depends on whatever test file
+  // running concurrently last populated that cache — CI's fresh runner got a
+  // plan of [sweep_tmp] only and failed. Seed a valid index containing a
+  // ghost entry so `stale_index_entry` (safe → rebuild_index) is always part
+  // of the plan, on every machine and every interleaving.
+  const { invalidateSearchIndex, SEARCH_INDEX_VERSION } = await import('../../src/search/search-service.js');
+  const home = path.join(lib, '..', `home-${path.basename(lib)}`);
+  process.env.REVERIE_HOME = home;
+  process.env.REVERIE_SEARCH_INDEX = path.join(lib, '..', `search-${path.basename(lib)}.json`);
+  invalidateSearchIndex();
+  const ghostIndex = {
+    index_version: SEARCH_INDEX_VERSION,
+    built_at: new Date().toISOString(),
+    documents: [{ document_id: 'ghost-doc', path: path.join('articles', '2026', 'ghost-doc'), title: 'ghost' }],
+  };
+  await fsp.writeFile(process.env.REVERIE_SEARCH_INDEX, JSON.stringify(ghostIndex));
   const first = await runDoctor(lib);
   const codes = first.findings.map((f) => f.checkId);
   assert.ok(codes.includes('annotation_corrupt'));
@@ -177,6 +195,11 @@ test('doctor: corrupt library → correct findings; safe repair fixes them; idem
     `remaining: ${JSON.stringify(result.afterSummary)}`);
 
   // idempotent: re-run scan has no safe findings left
+  // re-pin env + drop the cache: a concurrently-running file may have
+  // repopulated it or flipped the global index path in between
+  process.env.REVERIE_HOME = home;
+  process.env.REVERIE_SEARCH_INDEX = path.join(lib, '..', `search-${path.basename(lib)}.json`);
+  invalidateSearchIndex();
   const second = await runDoctor(lib);
   assert.equal(second.summary.repairable, 0, `second-run findings: ${JSON.stringify(second.findings)}`);
 });
