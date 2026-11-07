@@ -50,8 +50,17 @@ const copyDir = async (src, dest, filter = () => true) => {
 };
 
 console.log('== M11 portable packaging ==');
-if (!existsSync(path.join(root, 'node_modules', 'electron', 'dist', 'electron.exe'))) {
-  throw new Error('electron runtime not installed — run npm install first');
+const electronExe = () => path.join(root, 'node_modules', 'electron', 'dist', 'electron.exe');
+if (!existsSync(electronExe())) {
+  // electron@44 ships NO npm install script — the binary downloads lazily on
+  // first launch (index.js → install.js). Local dev already ran the app, but
+  // a CI `npm ci` never launches electron, so dist/ does not exist here.
+  // Materialize it with the package's own installer (idempotent).
+  console.log('electron binary missing — running node_modules/electron/install.js …');
+  execSync(`node "${path.join(root, 'node_modules', 'electron', 'install.js')}"`, { cwd: root, stdio: 'inherit' });
+  if (!existsSync(electronExe())) {
+    throw new Error('electron binary download failed — check network access to github releases (or set ELECTRON_MIRROR)');
+  }
 }
 
 // 0. build metadata
