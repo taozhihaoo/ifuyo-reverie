@@ -9,12 +9,13 @@ on:
 jobs:
   test:
     runs-on: windows-latest
+    timeout-minutes: 20 # fail fast — a hang here once burned six 6-hour zombie runs
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24 # matches the dev runtime; Node 22's per-file process isolation exposed a test handle leak (fixed in tests)
           cache: npm
 
       - name: Install dependencies
@@ -26,12 +27,13 @@ jobs:
   package:
     runs-on: windows-latest
     needs: test
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
