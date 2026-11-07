@@ -85,7 +85,7 @@ async function startTestServer() {
 
 // shared across this file's tests (batched, per user's "don't test frequently")
 const { server, origin } = await startTestServer();
-process.on('exit', () => server.close());
+server.unref(); // must not hold the loop open: per-file isolation (CI default) waits for child exit — an async close() in the 'exit' hook can never run
 
 test('canonicalizeForDedupe: query order, tracking params, trailing slash, case', () => {
   assert.equal(

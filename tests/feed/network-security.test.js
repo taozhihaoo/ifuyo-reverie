@@ -55,7 +55,7 @@ async function startServer() {
 
 process.env.REVERIE_ALLOW_PRIVATE_NETWORK = '1'; // test server lives on loopback
 const { server, origin } = await startServer();
-process.on('exit', () => server.close());
+server.unref(); // must not hold the loop open: per-file isolation (CI default) waits for child exit — an async close() in the 'exit' hook can never run
 
 const get = async (p, opts = {}) => {
   try {
