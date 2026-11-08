@@ -303,6 +303,7 @@ export async function search(rawQuery, { limit = 50, offset = 0, libraryRoot } =
 export async function queryLibrary(rawQuery, {
   view = 'all',
   tags = [],
+  feedId = null,
   sort = 'captured',
   limit = 200,
   offset = 0,
@@ -325,6 +326,8 @@ export async function queryLibrary(rawQuery, {
   for (const tag of tags) {
     docs = docs.filter((d) => d.tags.some((t) => t.toLowerCase() === tag.toLowerCase()));
   }
+  // Sidebar feed facets compose with the view/tag filters (M4 §49).
+  if (feedId) docs = docs.filter((d) => d.feed_id === feedId);
 
   const sorters = {
     'recent-opened': (a, b) => (b.last_opened_at ?? '').localeCompare(a.last_opened_at ?? '') || a.document_id.localeCompare(b.document_id),
@@ -340,12 +343,18 @@ export async function queryLibrary(rawQuery, {
       title: d.title,
       type: d.type,
       author: d.author,
+      // The library row shows the source host — without these the renderer's
+      // `e.original_url ?? e.canonical_url` was always undefined (empty host).
+      url: d.url ?? null,
+      original_url: d.url ?? null,
+      canonical_url: d.url ?? null,
       captured_at: d.captured_at,
       last_opened_at: d.last_opened_at,
       read: d.read,
       favorite: d.favorite,
       inbox: d.inbox,
       tags: d.tags,
+      feed_id: d.feed_id ?? null,
       path: d.path,
     })),
   };

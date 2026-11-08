@@ -2,6 +2,7 @@
   "name": "ifuyo-reverie",
   "version": "1.0.0",
   "private": true,
+  "license": "(Apache-2.0 OR MIT)",
   "description": "ifuyo Reverie — Windows-first, local-first, file-native personal reading archive. M0: foundation & risk spikes.",
   "type": "module",
   "engines": {
@@ -11,7 +12,6 @@
     "test": "node --test",
     "spike:extraction": "node spikes/extraction/run.mjs",
     "spike:pdf": "node spikes/pdf/run.mjs",
-    "spike:epub:node": "node spikes/epub/run-node.mjs",
     "spike:recovery": "node spikes/recovery/run.mjs",
     "fixtures:pdf": "node spikes/pdf/make-fixtures.mjs",
     "fixtures:epub": "node spikes/epub/make-fixtures.mjs",
@@ -24,6 +24,12 @@
     "smoke:tts": "node scripts/smoke-tts.mjs",
     "smoke:epub": "node scripts/smoke-epub.mjs",
     "smoke:doctor": "node scripts/smoke-doctor.mjs",
+    "smoke:ui": "node scripts/smoke-ui.mjs",
+    "smoke:release": "node scripts/smoke-release.mjs",
+    "smoke:journey": "node scripts/smoke-journey.mjs",
+    "smoke:packaged": "node scripts/smoke-packaged.mjs",
+    "smoke:capture-live": "node scripts/smoke-capture-live.mjs",
+    "shots": "node scripts/capture-readme-shots.mjs",
     "bench:m3": "node spikes/bench-m3.mjs",
     "bench:m5": "node spikes/bench-m5.mjs"
   },

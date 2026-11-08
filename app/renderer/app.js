@@ -143,7 +143,14 @@ let searchSeq = 0; // M3 §58: only the newest query may render
 let activeResultIdx = -1;
 let lastSearchResults = [];
 
-const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '');
+// Dates follow the UI language, not the OS locale (Post-1.0 UI polish):
+// an English interface was still printing `2026年11月8日 05:42`.
+const fmtDate = (iso) => (iso
+  ? new Date(iso).toLocaleString(
+      window.I18N?.getLang?.() === 'en' ? 'en-US' : 'zh-CN',
+      { dateStyle: 'medium', timeStyle: 'short' },
+    )
+  : '');
 const hostOf = (url) => { try { return new URL(url).host; } catch { return ''; } };
 const t = (key, vars) => window.I18N.t(key, vars);
 
@@ -257,6 +264,8 @@ function showReviewItem() {
   const box = document.getElementById('review-body');
   box.textContent = '';
   if (!reviewSession || reviewIndex >= reviewSession.length) {
+    document.getElementById('review-pos').textContent = reviewSession
+      ? `${reviewSession.length} / ${reviewSession.length}` : '';
     document.getElementById('review-empty').hidden = false;
     document.getElementById('review-empty').textContent = t('review.done');
     document.getElementById('review-nav').hidden = true;
@@ -295,6 +304,7 @@ async function startDailyReview() {
   els.library.hidden = true;
   els.reader.hidden = true;
   searchResults.hidden = true;
+  document.querySelectorAll('[data-view]').forEach((x) => x.classList.toggle('active', x.dataset.view === 'daily-review'));
   const view = document.getElementById('review-view');
   view.hidden = false;
   showReviewItem();
@@ -410,6 +420,8 @@ async function showLibrary() {
   els.reader.hidden = true;
   els.library.hidden = false;
   searchResults.hidden = true;
+  const reviewView = document.getElementById('review-view');
+  if (reviewView) reviewView.hidden = true;
   document.getElementById('annotation-panel').hidden = true;
   const doctorPanelEl = document.getElementById('doctor-panel');
   if (doctorPanelEl) doctorPanelEl.hidden = true;
@@ -421,6 +433,15 @@ async function showLibrary() {
     feedId: activeFeedId ?? undefined,
     sort: currentView === 'recent' ? 'recent-opened' : 'captured',
   });
+
+  // Library header is static markup; keep its copy in sync with the active
+  // view / feed facet and the i18n language.
+  const viewTitle = document.getElementById('view-title');
+  if (viewTitle) {
+    viewTitle.textContent = activeFeedId ? t('sidebar.feeds') : t('view.' + currentView);
+    const sub = document.getElementById('view-subtitle');
+    if (sub) sub.textContent = t('library.items', { n: total });
+  }
 
   // sidebar counters + tag facets
   for (const [view, count] of Object.entries(counts)) {
@@ -520,14 +541,15 @@ function renderLibraryRow(e) {
   head.append(dot, title);
   const meta = document.createElement('div');
   meta.className = 'a-meta';
-  const source = e.original_url ?? e.canonical_url;
-  meta.append(
+  const source = e.original_url ?? e.canonical_url ?? e.url;
+  // Empty bits (no star, not in inbox, no host…) must not keep their flex gap.
+  meta.append(...[
     Object.assign(document.createElement('span'), { textContent: e.favorite ? '★' : '', className: 'fav-star' }),
     Object.assign(document.createElement('span'), { textContent: e.inbox ? '📥' : '' }),
     Object.assign(document.createElement('span'), { textContent: hostOf(source) }),
     Object.assign(document.createElement('span'), { textContent: e.author ?? '' }),
     Object.assign(document.createElement('span'), { textContent: fmtDate(currentView === 'recent' ? e.last_opened_at : e.captured_at) }),
-  );
+  ].filter((el) => el.textContent));
   for (const tag of e.tags) {
     const chip = document.createElement('span');
     chip.className = 'tag-chip';
@@ -537,10 +559,10 @@ function renderLibraryRow(e) {
   const actions = document.createElement('span');
   actions.className = 'a-actions';
   for (const [label, fn, active] of [
-    [e.favorite ? t('row.unfav') : t('row.fav'), () => setState(e.document_id, { favorite: !e.favorite })],
-    [e.read ? t('row.markUnread') : t('row.markRead'), () => setState(e.document_id, { read: !e.read })],
-    [e.inbox ? t('row.uninbox') : t('row.inbox'), () => setState(e.document_id, { inbox: !e.inbox })],
-    [t('row.delete'), () => removeArticle(e.document_id, e.title)],
+    [e.favorite ? t('row.unfav') : t('row.fav'), () => setState(e.document_id, { favorite: !e.favorite }), e.favorite],
+    [e.read ? t('row.markUnread') : t('row.markRead'), () => setState(e.document_id, { read: !e.read }), e.read],
+    [e.inbox ? t('row.uninbox') : t('row.inbox'), () => setState(e.document_id, { inbox: !e.inbox }), e.inbox],
+    [t('row.delete'), () => removeArticle(e.document_id, e.title), false],
   ]) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -870,6 +892,8 @@ async function openArticle(documentId) {
   els.library.hidden = true;
   searchResults.hidden = true;
   els.reader.hidden = false;
+  const reviewView = document.getElementById('review-view');
+  if (reviewView) reviewView.hidden = true;
   panel.hidden = true;
   hidePopup();
   els.title.textContent = loaded.meta.title ?? "(untitled)";
@@ -1181,6 +1205,8 @@ document.addEventListener('keydown', (ev) => {
     els.reader.hidden = true;
     searchResults.hidden = false;
     els.library.hidden = true;
+    const reviewView = document.getElementById('review-view');
+    if (reviewView) reviewView.hidden = true;
     searchInput.focus();
     searchInput.select();
   }
@@ -1188,13 +1214,15 @@ document.addEventListener('keydown', (ev) => {
 
 for (const b of document.querySelectorAll('[data-view]')) {
   b.addEventListener('click', () => {
-    if (b.dataset.view === 'daily-review') { startDailyReview(); return; }
+    if (b.dataset.view === 'daily-review') { startDailyReview().catch((err) => alert(String(err.message ?? err))); return; }
     currentView = b.dataset.view;
     activeFeedId = null;
     document.querySelectorAll('[data-view]').forEach((x) => x.classList.toggle('active', x === b));
     showLibrary();
   });
 }
+document.getElementById('review-prev').addEventListener('click', prevReviewItem);
+document.getElementById('review-next').addEventListener('click', nextReviewItem);
 document.getElementById('btn-back').addEventListener('click', () => {
   globalThis.ReverieTtsView?.close();
   globalThis.ReveriePdf?.dispose?.();
@@ -1266,8 +1294,6 @@ async function refreshAppInfoLine() {
     if (el && el.textContent.length === 0) el.textContent = line;
   } catch { /* optional */ }
 }
-
-document.getElementById('btn-logs-open').addEventListener('click', () => reverie.appOpenLogs());
 
 // ---- Post-1.0: appearance (theme / accent) + language switching ----
 (function initAppearance() {
@@ -1479,4 +1505,6 @@ document.addEventListener('reverie:langchanged', () => {
   window.I18N.applyStatic(document.getElementById('book-toc'));
   window.I18N.applyStatic(document.getElementById('annotation-panel'));
   if (!els.library.hidden) showLibrary();
+  const reviewView = document.getElementById('review-view');
+  if (reviewView && !reviewView.hidden) showReviewItem();
 });

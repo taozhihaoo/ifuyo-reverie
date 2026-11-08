@@ -92,7 +92,8 @@ export async function fetchUrl(url, {
     assertPublicHost(new URL(current).hostname, { allowPrivateNetwork });
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
-    if (signal) signal.addEventListener('abort', () => controller.abort(), { once: true });
+    const abortFromSignal = () => controller.abort();
+    if (signal) signal.addEventListener('abort', abortFromSignal, { once: true });
     let res;
     try {
       res = await fetch(current, { redirect: 'manual', signal: controller.signal, headers });
@@ -101,7 +102,7 @@ export async function fetchUrl(url, {
       throw new FetchError(ERROR_CODES.NETWORK_ERROR, `fetch failed: ${err?.cause?.message ?? err.message}`);
     } finally {
       clearTimeout(timer);
-      if (signal) signal.removeEventListener('abort', () => controller.abort());
+      if (signal) signal.removeEventListener('abort', abortFromSignal);
     }
     if (res.status === 304) {
       return { finalUrl: current, status: 304, notModified: true, contentType: null, etag: res.headers.get('etag'), lastModified: res.headers.get('last-modified'), buffer: null };
@@ -138,12 +139,21 @@ export async function fetchUrl(url, {
  * Fetch an HTML page. Returns { finalUrl, status, contentType, html }.
  * Throws FetchError with a stable error code on any violation.
  */
-export async function fetchPage(url, limits = FETCH_LIMITS, { allowPrivateNetwork = process.env.REVERIE_ALLOW_PRIVATE_NETWORK === '1' } = {}) {
+export async function fetchPage(url, limits = FETCH_LIMITS, {
+  signal = null,
+  allowPrivateNetwork = process.env.REVERIE_ALLOW_PRIVATE_NETWORK === '1',
+} = {}) {
   assertHttp(url);
   let current = url;
   for (let redirects = 0; redirects <= limits.maxRedirects; redirects++) {
+    // Validate BEFORE the request leaves the machine — otherwise a private
+    // host (or a redirect target) has already received the request (M4 §57).
+    assertHttp(current);
+    assertPublicHost(new URL(current).hostname, { allowPrivateNetwork });
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), limits.timeoutMs);
+    const abortFromSignal = () => controller.abort();
+    if (signal) signal.addEventListener('abort', abortFromSignal, { once: true });
     let res;
     try {
       res = await fetch(current, {
@@ -153,11 +163,12 @@ export async function fetchPage(url, limits = FETCH_LIMITS, { allowPrivateNetwor
       });
     } catch (err) {
       if (signal?.aborted) throw new FetchError(ERROR_CODES.NETWORK_ERROR, 'fetch cancelled');
+      if (controller.signal.aborted) throw new FetchError(ERROR_CODES.NETWORK_ERROR, 'fetch timed out');
       throw new FetchError(ERROR_CODES.NETWORK_ERROR, `fetch failed: ${err?.cause?.message ?? err.message}`);
     } finally {
       clearTimeout(timer);
+      if (signal) signal.removeEventListener('abort', abortFromSignal);
     }
-    assertPublicHost(new URL(current).hostname); // revalidate after redirects (M4 §57)
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location');
       if (!location) throw new FetchError(ERROR_CODES.NETWORK_ERROR, `redirect without location (HTTP ${res.status})`);
@@ -189,6 +200,7 @@ export async function fetchPage(url, limits = FETCH_LIMITS, { allowPrivateNetwor
  */
 export async function fetchAsset(url, limits = FETCH_LIMITS) {
   assertHttp(url);
+  assertPublicHost(new URL(url).hostname); // same private-network policy as pages (M4 §57)
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), limits.assetTimeoutMs);
   try {

@@ -17,7 +17,7 @@ import { processQueue } from '../src/capture/worker.js';
 import { verifyArticleDir } from '../src/library/persist.js';
 import { createAnnotationService } from '../src/annotation/service.js';
 import { parseMarkdownBlocks } from '../src/reader/markdown-reader.js';
-import { loadUserState, updateUserState, forgetDocument, userStatePath } from '../src/library/user-state.js';
+import { loadUserState, updateUserState, stateOf, forgetDocument, userStatePath } from '../src/library/user-state.js';
 import { loadSearchIndex, refreshSearchIndex, invalidateSearchIndex, search, queryLibrary, tagFacets, viewCounts } from '../src/search/search-service.js';
 import { runDoctor, repairSafe, repairDoctorFinding } from '../src/library/doctor.js';
 import { addFeedUrl, refreshFeed, refreshAllFeeds, deleteFeedOnly, listFeedsWithCounts, updateFeedMeta } from '../src/feed/feed-service.js';
@@ -322,8 +322,8 @@ function registerIpc() {
   });
 
   // ---- M3: search & library views ----
-  ipcMain.handle('library:view', withSearchIndexReady(async (_e, { view = 'all', query = '', tags = [], sort = 'captured', limit = 200, offset = 0 }) => {
-    const results = await queryLibrary(query, { view, tags, sort, limit, offset, libraryRoot });
+  ipcMain.handle('library:view', withSearchIndexReady(async (_e, { view = 'all', query = '', tags = [], feedId = null, sort = 'captured', limit = 200, offset = 0 }) => {
+    const results = await queryLibrary(query, { view, tags, feedId, sort, limit, offset, libraryRoot });
     return { ...results, counts: viewCounts(), tag_facets: tagFacets() };
   }));
 
@@ -386,8 +386,8 @@ function registerIpc() {
   });
   ipcMain.handle('settings:set-library', async (_e, { libraryPath }) => {
     if (typeof libraryPath !== 'string' || libraryPath.trim() === '') throw new Error('库路径不能为空');
+    if (!path.isAbsolute(libraryPath.trim())) throw new Error('库路径必须是绝对路径');
     const resolved = path.resolve(libraryPath.trim());
-    if (path.isAbsolute(resolved) === false) throw new Error('库路径必须是绝对路径');
     await fsp.mkdir(resolved, { recursive: true }); // create if new (M11 §11 Create Library)
     await saveAppSettings({ libraryPath: resolved });
     appLog.info(`library path set: ${resolved} (effective after relaunch)`);
@@ -567,10 +567,12 @@ function registerIpc() {
   });
   ipcMain.handle('export:metadata', async (_e, { format = 'csv' }) => {
     const index = await loadIndex(libraryRoot);
-    const readState = await loadReadState();
+    const userState = await loadUserState();
+    // read/favorite/inbox/tags live in user-state.json — NOT in the legacy
+    // read-state.json (which only carries { state, updated_at }).
     const stateAdapter = (id) => {
-      const st = readState.states[id];
-      return { read: st?.read ?? false, favorite: st?.favorite ?? false, inbox: st?.inbox ?? false, tags: st?.tags ?? [] };
+      const st = stateOf(userState, id);
+      return { read: st.read, favorite: st.favorite, inbox: st.inbox, tags: st.tags };
     };
     if (format === 'json') return exportMetadataJson(index.entries, stateAdapter);
     return exportMetadataCsv(index.entries, stateAdapter);
@@ -814,8 +816,7 @@ async function autoRegisterNativeHost() {
       `HKCU\\SOFTWARE\\Microsoft\\Edge\\NativeMessagingHosts\\${HOST_NAME}`,
     ]) {
       await new Promise((resolve, reject) => {
-        const p = execFile('reg', ['add', regKey, '/ve', '/d', manifestPath, '/f'], (err, stdout) => (err ? reject(err) : resolve(stdout)));
-        p.on('exit', () => resolve());
+        execFile('reg', ['add', regKey, '/ve', '/d', manifestPath, '/f'], (err, stdout) => (err ? reject(err) : resolve(stdout)));
       }).catch(() => appLog.warn(`native host registration failed: ${regKey}`));
     }
   } catch (err) {
@@ -857,12 +858,17 @@ app.whenReady().then(async () => {
   await fsp.mkdir(libraryRoot, { recursive: true });
   await fsp.mkdir(queueDir, { recursive: true });
   registerIpc();
+  // Gate data IPC on the cold-start index build (M12): the renderer can issue
+  // its first library:view before the window is even painted.
+  searchIndexReady = (async () => {
+    await loadSearchIndex(libraryRoot).catch(() => {});
+    await refreshSearchIndex(libraryRoot).catch((e) => console.error('[reverie] search refresh:', e.message)); // process what accumulated while the app was closed (M1 §5.1)
+  })();
   createWindow();
   void autoRegisterNativeHost(); // Post-1.0: register the capture host in background
   await runQueueIfIdle();
   watchQueueDir(); // captures arriving while running are processed within ~500ms
-  await loadSearchIndex(libraryRoot).catch(() => {});
-  await refreshSearchIndex(libraryRoot).catch((e) => console.error('[reverie] search refresh:', e.message)); // process what accumulated while the app was closed (M1 §5.1)
+  await searchIndexReady;
   // cold-start fix (M12): the renderer may have queried before the search
   // index was ready — tell it to re-query now that the index is built
   broadcast('library:changed');

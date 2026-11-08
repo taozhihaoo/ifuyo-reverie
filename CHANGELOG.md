@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased — UI refresh + audit fixes
+
+### 界面
+
+- 重做整套视觉层（`app/renderer/style.css`）：分层表面、柔光背景、卡片化列表、
+  更明确的层级与克制动效；新增资料库视图标题区与「每日回顾」视图
+- 修复 `--muted` 变量从未定义——24 处次要文字颜色实际失效，界面因此发灰发平
+- 修复带 `hidden` 属性、但被 author CSS `display` 覆盖的控件（PDF/TTS 控制条、
+  选区弹窗）可能常驻显示的问题（`[hidden] { display: none !important }`）
+- 日期格式跟随界面语言（英文界面不再出现「2026年11月8日」）
+- 列表标签只渲染一次；行内操作按钮改为悬停显示，减少视觉噪声
+
+### 修复
+
+- **每日回顾点击即崩溃**：视图所需的 8 个 DOM 节点在 `index.html` 中缺失，
+  补齐视图并接线「上一张 / 下一张」
+- **订阅源筛选失效**：`feedId` 由渲染层传入后，在主进程被丢弃
+- **Metadata 导出** read / favorite / inbox / tags 恒为假值（读错了 `read-state.json`
+  而非 `user-state.json`）
+- **无标题 EPUB 无法打开**：`epub-reader-core.js` 漏导入 `node:path`
+- **库列表来源站点恒为空**：搜索结果投影未返回 URL
+- 采集网络失败时真实错误被 `signal is not defined` 覆盖；abort 监听器泄漏
+- `fetchPage` 私有主机校验发生在请求之后（SSRF 防护时序），`fetchAsset` 无该校验
+- 原生消息注册表写入失败被静默吞掉（`exit` 先于 callback 敲定 Promise）
+- 冷启动 `searchIndexReady` 门禁从未赋值
+- 「日志」按钮重复绑定；行内按钮的 active 状态是死代码
+- 删除未被引用、未被 git 追踪的 `src/search/search-service-head.tmp` 旧副本
+
+### 工程
+
+- README 改为英文优先、中文第二，并为两种语言各附界面截图
+- 新增 `LICENSE-APACHE` / `LICENSE-MIT`（双许可）与英文 `SECURITY.md`
+- 新增 `npm run shots`：用真实 Electron + CDP 生成 README 截图
+- 补齐 `smoke:ui` / `smoke:release` / `smoke:journey` / `smoke:packaged` /
+  `smoke:capture-live`；移除指向不存在文件的 `spike:epub:node`
+- 新增 3 项回归测试（订阅源过滤、`fetchPage` 请求前预检、无标题 EPUB）
+
+**312 项自动化测试通过。**
+
 ## 1.0.0 (2026-10-05) — Self-Use 1.0
 
 首个完整自用版本。M0–M12 全部里程碑完成，309 项自动化测试 + 7 项真机冒烟。

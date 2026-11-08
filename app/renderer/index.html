@@ -9,7 +9,10 @@
 </head>
 <body>
 <header id="topbar">
-  <h1 id="brand">Reverie</h1>
+  <h1 id="brand" title="Reverie">
+    <span class="brand-mark" aria-hidden="true"><span class="brand-mark-inner"></span></span>
+    <span class="brand-word">Reverie</span>
+  </h1>
   <input id="search-input" type="text" data-i18n-ph="topbar.search.ph" spellcheck="false">
   <span id="queue-hint" title="Capture queue"></span>
   <span class="spacer"></span>
@@ -63,6 +66,14 @@
   </nav>
 
   <main id="library-view">
+    <div class="view-head">
+      <div class="view-head-copy">
+        <p class="view-eyebrow" data-i18n="library.eyebrow">资料库</p>
+        <h2 id="view-title" class="view-title">全部资料</h2>
+        <p id="view-subtitle" class="view-subtitle"></p>
+      </div>
+      <div class="view-head-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+    </div>
     <div id="setup-guide" hidden>
       <p class="setup-title" data-i18n="setup.title">连接浏览器扩展</p>
       <ol class="setup-steps">
@@ -85,6 +96,27 @@
 
   <main id="search-results" hidden>
     <p id="search-hint" hidden></p>
+  </main>
+
+  <main id="review-view" hidden>
+    <div class="review-head">
+      <div>
+        <p class="view-eyebrow" data-i18n="review.title">每日回顾</p>
+        <p class="review-sub" data-i18n="review.subtitle">重温你的划线与笔记</p>
+      </div>
+      <span id="review-pos" class="review-pos"></span>
+    </div>
+    <div class="review-card">
+      <p id="review-kind" class="review-kind"></p>
+      <button id="review-doc-title" class="review-doc-title" type="button"></button>
+      <div id="review-body" class="review-body"></div>
+      <p id="review-empty" class="review-empty" hidden></p>
+    </div>
+    <div id="review-nav" class="review-nav">
+      <button id="review-prev" type="button" data-i18n="review.prev">← 上一张</button>
+      <button id="review-next" type="button" class="primary" data-i18n="review.next">下一张 →</button>
+      <button id="review-open" type="button" data-i18n="review.open">打开原文</button>
+    </div>
   </main>
 
   <article id="reader-view" hidden>

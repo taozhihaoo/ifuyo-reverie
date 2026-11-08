@@ -6,6 +6,7 @@
  */
 import { openEpubContainer, parseOpf, extractToc, EpubError } from './epub-book.js';
 import { sanitizeArticleHtml } from '../security/sanitize-html.js';
+import path from 'node:path';
 import { JSDOM } from 'jsdom';
 
 export { EpubError };
